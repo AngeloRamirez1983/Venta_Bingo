@@ -602,11 +602,23 @@
     }
 
     // Hook para impresora Bluetooth: aquí se conecta con la impresora real
-    async function imprimirTicketBluetooth(ticketTexto) {
-      // Por ahora solo mostramos el ticket en consola y un alert.
-      console.log('TICKET A IMPRIMIR:\n' + ticketTexto);
-      alert('Ticket generado.\n\n(La impresión Bluetooth real se configura en la app Android con la PT-210.)');
+   async function imprimirTicketBluetooth(ticketTexto) {
+  // Si estamos en la app Android (WebView con bridge nativo):
+  if (window.Android && typeof window.Android.printTicket === 'function') {
+    try {
+      window.Android.printTicket(ticketTexto);
+      return;
+    } catch (e) {
+      console.error('Error al llamar a Android.printTicket:', e);
+      alert('Error al enviar el ticket a la app Android.');
+      return;
     }
+  }
+
+  // Si estamos en navegador normal (Chrome, etc.)
+  console.log('TICKET A IMPRIMIR:\n' + ticketTexto);
+  alert('Ticket generado.\n\n(Para imprimir de verdad usa la app Android con la impresora PT-210 emparejada.)');
+}
 
     // Click en los productos
     document.querySelectorAll('.product-card').forEach(card => {
