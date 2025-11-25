@@ -6,10 +6,10 @@
   <title>Ventas Medio Mayor - Jardín Semillitas</title>
 
   <!-- Manifest PWA -->
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="manifest.json" />
 
-  <!-- Colores PWA -->
-  <meta name="theme-color" content="#1e293b">
+  <!-- Color de la barra del navegador / PWA -->
+  <meta name="theme-color" content="#1e293b" />
 
   <style>
     * {
@@ -229,38 +229,56 @@
     }
   </style>
 </head>
-
 <body>
   <div class="app-container">
-
     <div class="header-logo">
-      <img src="img/semillitas.jpg" alt="Jardín Semillitas" class="logo-img">
+      <img src="img/semillitas.jpg" alt="Jardín Semillitas" class="logo-img" />
     </div>
 
     <h1>Ventas Medio Mayor - Jardín Semillitas</h1>
     <p class="subtitle">Toca un producto para agregarlo a la venta actual.</p>
 
+    <!-- Venta acumulada del día en tiempo real -->
     <div class="realtime-card">
       <span class="realtime-label">Venta acumulada hoy:</span>
       <span id="realtime-amount" class="realtime-amount">$0</span>
     </div>
 
     <div class="products-grid">
-
-      <button class="product-card" data-producto="Empanada de queso" data-precio="1000" type="button">
-        <img src="img/empanada.jpg" alt="Empanada de queso" class="product-image"/>
+      <!-- Producto: Empanada de Queso -->
+      <button
+        class="product-card"
+        data-producto="Empanada de queso"
+        data-precio="1000"
+        type="button"
+      >
+        <img
+          src="img/empanada.jpg"
+          alt="Empanada de queso"
+          class="product-image"
+        />
         <div class="product-name">Empanada de queso</div>
         <div class="product-price">$1.000 c/u</div>
       </button>
 
-      <button class="product-card" data-producto="Papas fritas" data-precio="2000" type="button">
-        <img src="img/papas.jpg" alt="Papas fritas" class="product-image"/>
+      <!-- Producto: Papas fritas -->
+      <button
+        class="product-card"
+        data-producto="Papas fritas"
+        data-precio="2000"
+        type="button"
+      >
+        <img
+          src="img/papas.jpg"
+          alt="Papas fritas"
+          class="product-image"
+        />
         <div class="product-name">Papas fritas</div>
         <div class="product-price">$2.000 por porción</div>
       </button>
-
     </div>
 
+    <!-- Resumen de la venta actual -->
     <div class="summary-card">
       <div class="summary-header">
         <span class="summary-title">Venta actual</span>
@@ -277,411 +295,482 @@
       </div>
 
       <div class="btn-row">
-        <button id="btn-nueva" class="btn btn-secondary">Nueva venta</button>
-        <button id="btn-cobrar" class="btn btn-pay">Cobrar / Imprimir</button>
+        <button id="btn-nueva" class="btn btn-secondary" type="button">
+          Nueva venta
+        </button>
+        <button id="btn-cobrar" class="btn btn-pay" type="button">
+          Cobrar / Imprimir
+        </button>
       </div>
     </div>
 
+    <!-- Cierre del día -->
     <div class="summary-card">
       <div class="summary-header">
         <span class="summary-title">Cierre del día</span>
         <span id="cierre-fecha"></span>
       </div>
-
       <div class="summary-list">
         <p id="cierre-empanadas">Empanadas: 0</p>
         <p id="cierre-papas">Papas fritas: 0</p>
         <p id="cierre-total">Total vendido: $0</p>
       </div>
-
       <div class="btn-row">
-        <button id="btn-ver-cierre" class="btn btn-secondary">Ver cierre</button>
-        <button id="btn-imprimir-cierre" class="btn btn-primary">Imprimir cierre</button>
-        <button id="btn-reset-cierre" class="btn btn-danger">Reset día</button>
+        <button id="btn-ver-cierre" class="btn btn-secondary" type="button">
+          Ver cierre
+        </button>
+        <button id="btn-imprimir-cierre" class="btn btn-primary" type="button">
+          Imprimir cierre
+        </button>
+        <button id="btn-reset-cierre" class="btn btn-danger" type="button">
+          Reset día
+        </button>
       </div>
     </div>
 
-    <p class="footer-text">Funciona offline y lista para impresión USB en Mac.</p>
-
+    <p class="footer-text">
+      Funciona offline, se puede instalar como PWA y está lista para impresión USB en Mac.
+    </p>
   </div>
 
-<script>
-/* ------------------------------
-   PWA + LÓGICA ORIGINAL
--------------------------------- */
+  <script>
+    /* ---------- PWA ---------- */
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker
+          .register("service-worker.js")
+          .catch((err) => console.error("Error SW:", err));
+      });
+    }
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('service-worker.js')
-  });
-}
+    /* ---------- VARIABLES GLOBALES ---------- */
+    const productos = {};
 
-const productos = {};
+    const summaryList = document.getElementById("summary-list");
+    const totalAmount = document.getElementById("total-amount");
+    const itemsCount = document.getElementById("items-count");
+    const btnNueva = document.getElementById("btn-nueva");
+    const btnCobrar = document.getElementById("btn-cobrar");
 
-const summaryList = document.getElementById('summary-list');
-const totalAmount = document.getElementById('total-amount');
-const itemsCount = document.getElementById('items-count');
-const btnNueva = document.getElementById('btn-nueva');
-const btnCobrar = document.getElementById('btn-cobrar');
+    const cierreFecha = document.getElementById("cierre-fecha");
+    const cierreEmpanadas = document.getElementById("cierre-empanadas");
+    const cierrePapas = document.getElementById("cierre-papas");
+    const cierreTotal = document.getElementById("cierre-total");
+    const btnVerCierre = document.getElementById("btn-ver-cierre");
+    const btnImprimirCierre = document.getElementById("btn-imprimir-cierre");
+    const btnResetCierre = document.getElementById("btn-reset-cierre");
 
-const cierreFecha = document.getElementById('cierre-fecha');
-const cierreEmpanadas = document.getElementById('cierre-empanadas');
-const cierrePapas = document.getElementById('cierre-papas');
-const cierreTotal = document.getElementById('cierre-total');
-const btnVerCierre = document.getElementById('btn-ver-cierre');
-const btnImprimirCierre = document.getElementById('btn-imprimir-cierre');
-const btnResetCierre = document.getElementById('btn-reset-cierre');
+    const realtimeAmountEl = document.getElementById("realtime-amount");
 
-const realtimeAmountEl = document.getElementById('realtime-amount');
+    const STORAGE_KEY_TOTALES = "totalesDiaEmpanadasPapas";
+    const STORAGE_KEY_TICKETS = "ticketsDiaEmpanadasPapas";
+    const STORAGE_KEY_CIERRES = "cierresDiaSemillitas";
 
-const STORAGE_KEY_TOTALES = 'totalesDiaEmpanadasPapas';
-const STORAGE_KEY_TICKETS = 'ticketsDiaEmpanadasPapas';
-const STORAGE_KEY_CIERRES = 'cierresDiaSemillitas';
+    /* ---------- HELPERS ---------- */
 
+    function formatearCLP(valor) {
+      return valor.toLocaleString("es-CL", {
+        style: "currency",
+        currency: "CLP",
+        maximumFractionDigits: 0,
+      });
+    }
 
-function formatearCLP(valor) {
-  return valor.toLocaleString('es-CL', {style:'currency', currency:'CLP', maximumFractionDigits:0});
-}
+    function getFechaClave() {
+      const hoy = new Date();
+      const anio = hoy.getFullYear();
+      const mes = String(hoy.getMonth() + 1).padStart(2, "0");
+      const dia = String(hoy.getDate()).padStart(2, "0");
+      return `${anio}-${mes}-${dia}`;
+    }
 
-function getFechaClave() {
-  const hoy = new Date();
-  return `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-${String(hoy.getDate()).padStart(2,'0')}`;
-}
+    /* ---------- VENTA ACTUAL ---------- */
 
+    function calcularVentaActual() {
+      const items = [];
+      let total = 0;
 
-/* ----------------------------------------
-      CÁLCULO + RESUMEN VENTA ACTUAL
------------------------------------------ */
+      Object.keys(productos).forEach((nombre) => {
+        const { precio, cantidad } = productos[nombre];
+        const subtotal = precio * cantidad;
+        items.push({ nombre, precio, cantidad, subtotal });
+        total += subtotal;
+      });
 
-function calcularVentaActual() {
-  const items = [];
-  let total = 0;
+      return { items, total };
+    }
 
-  for (const nombre of Object.keys(productos)) {
-    const item = productos[nombre];
-    const subtotal = item.precio * item.cantidad;
-    items.push({ nombre, precio:item.precio, cantidad:item.cantidad, subtotal });
-    total += subtotal;
-  }
-  return { items, total };
-}
+    function actualizarResumen() {
+      const nombres = Object.keys(productos);
+      summaryList.innerHTML = "";
 
-function actualizarResumen() {
-  const nombres = Object.keys(productos);
-  summaryList.innerHTML = '';
+      if (nombres.length === 0) {
+        summaryList.innerHTML =
+          '<p class="summary-empty">Aún no agregas productos.</p>';
+        totalAmount.textContent = "$0";
+        itemsCount.textContent = "0 ítems";
+        return;
+      }
 
-  if (nombres.length === 0) {
-    summaryList.innerHTML = '<p class="summary-empty">Aún no agregas productos.</p>';
-    totalAmount.textContent = '$0';
-    itemsCount.textContent = '0 ítems';
-    return;
-  }
+      const { items, total } = calcularVentaActual();
+      let cantidadTotal = 0;
 
-  const { items, total } = calcularVentaActual();
-  let cantidadTotal = 0;
+      items.forEach((item) => {
+        cantidadTotal += item.cantidad;
+        const p = document.createElement("p");
+        p.textContent = `${item.cantidad} x ${item.nombre} = ${formatearCLP(
+          item.subtotal
+        )}`;
+        summaryList.appendChild(p);
+      });
 
-  items.forEach(item => {
-    cantidadTotal += item.cantidad;
-    const p = document.createElement('p');
-    p.textContent = `${item.cantidad} x ${item.nombre} = ${formatearCLP(item.subtotal)}`;
-    summaryList.appendChild(p);
-  });
+      totalAmount.textContent = formatearCLP(total);
+      itemsCount.textContent = `${cantidadTotal} ítem${
+        cantidadTotal !== 1 ? "s" : ""
+      }`;
+    }
 
-  totalAmount.textContent = formatearCLP(total);
-  itemsCount.textContent = `${cantidadTotal} ítem${cantidadTotal!==1?'s':''}`;
-}
+    function agregarProducto(nombre, precio) {
+      if (!productos[nombre]) {
+        productos[nombre] = { precio, cantidad: 0 };
+      }
+      productos[nombre].cantidad += 1;
+      actualizarResumen();
+    }
 
+    /* ---------- TOTALES DEL DÍA (LOCALSTORAGE) ---------- */
 
-function agregarProducto(nombre, precio) {
-  if (!productos[nombre]) productos[nombre]={precio, cantidad:0};
-  productos[nombre].cantidad++;
-  actualizarResumen();
-}
+    function obtenerTotalesHoy() {
+      const fechaClave = getFechaClave();
+      let data = {};
+      try {
+        data = JSON.parse(localStorage.getItem(STORAGE_KEY_TOTALES) || "{}");
+      } catch (e) {
+        console.error("Error leyendo totales:", e);
+      }
 
+      const totales = data[fechaClave] || {
+        empanadas: 0,
+        papas: 0,
+        total: 0,
+      };
 
-/* ------------------------------
-   TOTALES + LOCALSTORAGE
--------------------------------- */
+      return { fechaClave, totales, data };
+    }
 
-function obtenerTotalesHoy() {
-  const fechaClave = getFechaClave();
-  let data = {};
+    function cargarTotalesDia() {
+      const { fechaClave, totales } = obtenerTotalesHoy();
+      cierreFecha.textContent = fechaClave;
+      cierreEmpanadas.textContent = `Empanadas: ${totales.empanadas}`;
+      cierrePapas.textContent = `Papas fritas: ${totales.papas}`;
+      cierreTotal.textContent = `Total vendido: ${formatearCLP(
+        totales.total
+      )}`;
+      realtimeAmountEl.textContent = formatearCLP(totales.total);
+    }
 
-  try { data = JSON.parse(localStorage.getItem(STORAGE_KEY_TOTALES)||'{}'); }
-  catch (e) {}
+    function actualizarTotalesDiaDesdeVenta() {
+      const { fechaClave, totales, data } = obtenerTotalesHoy();
+      const { items, total } = calcularVentaActual();
 
-  const totales = data[fechaClave] || {empanadas:0, papas:0, total:0};
-  return {fechaClave, totales, data};
-}
-
-function cargarTotalesDia() {
-  const { fechaClave, totales } = obtenerTotalesHoy();
-  cierreFecha.textContent = fechaClave;
-  cierreEmpanadas.textContent = `Empanadas: ${totales.empanadas}`;
-  cierrePapas.textContent = `Papas fritas: ${totales.papas}`;
-  cierreTotal.textContent = `Total vendido: ${formatearCLP(totales.total)}`;
-  realtimeAmountEl.textContent = formatearCLP(totales.total);
-}
-
-function actualizarTotalesDiaDesdeVenta() {
-  const { fechaClave, totales, data } = obtenerTotalesHoy();
-  const { items, total } = calcularVentaActual();
-
-  items.forEach(item=>{
-    if (item.nombre==="Empanada de queso") totales.empanadas += item.cantidad;
-    if (item.nombre==="Papas fritas") totales.papas += item.cantidad;
-  });
-
-  totales.total += total;
-  data[fechaClave] = totales;
-  localStorage.setItem(STORAGE_KEY_TOTALES, JSON.stringify(data));
-  cargarTotalesDia();
-}
-
-
-/* -----------------------------------
-   REGISTRO DE TICKETS POR DÍA
--------------------------------------- */
-
-function obtenerTicketsHoy() {
-  const fechaClave = getFechaClave();
-  let data={};
-
-  try { data = JSON.parse(localStorage.getItem(STORAGE_KEY_TICKETS)||'{}'); }
-  catch(e){}
-
-  const tickets = data[fechaClave] || [];
-  return {fechaClave, tickets, data};
-}
-
-function guardarTicketDelDia(ticket) {
-  const {fechaClave, tickets, data} = obtenerTicketsHoy();
-  tickets.push(ticket);
-  data[fechaClave] = tickets;
-  localStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(data));
-}
-
-
-/* -----------------------------------
-         TICKET DE IMPRESIÓN
--------------------------------------- */
-
-function generarTextoTicket() {
-  const fecha = new Date().toLocaleString('es-CL');
-  const { items, total } = calcularVentaActual();
-
-  let t='';
-  t+='COMPROBANTE VENTA - MEDIO MAYOR\n';
-  t+='     JARDÍN SEMILLITAS\n';
-  t+='-----------------------------\n';
-  t+=fecha+'\n';
-  t+='-----------------------------\n';
-
-  if (items.length===0) t+='SIN PRODUCTOS\n';
-  else {
-    items.forEach(i=>{
-      t+=`${i.cantidad} x ${i.nombre}\n`;
-      t+=`   ${formatearCLP(i.precio)} c/u -> ${formatearCLP(i.subtotal)}\n`;
-    });
-  }
-
-  t+='-----------------------------\n';
-  t+=`TOTAL: ${formatearCLP(total)}\n`;
-  t+='Gracias por su compra\n\n\n';
-  return t;
-}
-
-
-/* ----------------------------------------
-       TICKET: CIERRE DETALLADO
------------------------------------------ */
-
-function generarTextoCierreDiaDetallado() {
-  const { fechaClave } = obtenerTotalesHoy();
-  const { tickets } = obtenerTicketsHoy();
-
-  let t='';
-  t+='         CIERRE DEL DÍA         \n';
-  t+=' EMPANADAS / PAPAS - SEMILLITAS \n';
-  t+='-----------------------------\n';
-  t+=`Fecha: ${fechaClave}\n`;
-  t+='-----------------------------\n';
-
-  let totalGeneral=0, totalEmp=0, totalPapas=0;
-
-  if (tickets.length===0) {
-    t+='SIN VENTAS REGISTRADAS\n\n\n';
-    return t;
-  }
-
-  tickets.forEach((tk,i)=>{
-    const hora = new Date(tk.fechaHoraISO).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
-    t+=`Ticket #${i+1} - ${hora}\n`;
-
-    tk.items.forEach(it=>{
-      t+=` ${it.cantidad}x ${it.nombre}\n`;
-      t+=`   -> ${formatearCLP(it.subtotal)}\n`;
-
-      if (it.nombre==="Empanada de queso") totalEmp+=it.cantidad;
-      if (it.nombre==="Papas fritas") totalPapas+=it.cantidad;
-    });
-
-    totalGeneral+=tk.total;
-    t+=` TOTAL TICKET: ${formatearCLP(tk.total)}\n`;
-    t+='-----------------------------\n';
-  });
-
-  t+='RESUMEN DEL DÍA\n';
-  t+=` Empanadas: ${totalEmp}\n`;
-  t+=` Papas fritas: ${totalPapas}\n`;
-  t+=` TOTAL GENERAL: ${formatearCLP(totalGeneral)}\n\n\n`;
-  return t;
-}
-
-
-/* ----------------------------------------
-  🔥 FUNCIÓN DE IMPRESIÓN USB PARA MAC
------------------------------------------ */
-
-async function imprimirTicketBluetooth(ticketTexto) {
-
-  const printWindow = window.open('', '_blank', 'width=400,height=600');
-
-  if (!printWindow) {
-    alert('El navegador bloqueó la ventana emergente. Habilita popups para poder imprimir.');
-    return;
-  }
-
-  const safe = ticketTexto
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;');
-
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Ticket</title>
-      <style>
-        body {
-          margin: 0;
-          padding: 8px;
-          font-family: "Courier New", monospace;
+      items.forEach((item) => {
+        if (item.nombre === "Empanada de queso") {
+          totales.empanadas += item.cantidad;
+        } else if (item.nombre === "Papas fritas") {
+          totales.papas += item.cantidad;
         }
-        .ticket {
-          width: 230px;
-          font-size: 12px;
-          white-space: pre-wrap;
-        }
-        @page { margin: 5mm; }
-      </style>
-    </head>
-    <body>
-      <div class="ticket">${safe}</div>
-      <script>
-        window.onload = () => window.print();
-      </script>
-    </body>
-    </html>
-  `);
+      });
 
-  printWindow.document.close();
-}
+      totales.total += total;
+      data[fechaClave] = totales;
+      localStorage.setItem(STORAGE_KEY_TOTALES, JSON.stringify(data));
+      cargarTotalesDia();
+    }
 
+    /* ---------- TICKETS POR DÍA ---------- */
 
-/* ----------------------------------------
-         EVENTOS BOTONES
------------------------------------------ */
+    function obtenerTicketsHoy() {
+      const fechaClave = getFechaClave();
+      let data = {};
+      try {
+        data = JSON.parse(localStorage.getItem(STORAGE_KEY_TICKETS) || "{}");
+      } catch (e) {
+        console.error("Error leyendo tickets:", e);
+      }
+      const tickets = data[fechaClave] || [];
+      return { fechaClave, tickets, data };
+    }
 
-document.querySelectorAll('.product-card').forEach(btn=>{
-  btn.addEventListener('click',()=>agregarProducto(btn.dataset.producto, Number(btn.dataset.precio)));
-});
+    function guardarTicketDelDia(ticketRecord) {
+      const { fechaClave, tickets, data } = obtenerTicketsHoy();
+      tickets.push(ticketRecord);
+      data[fechaClave] = tickets;
+      localStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(data));
+    }
 
-btnNueva.addEventListener('click', ()=>{
-  Object.keys(productos).forEach(k=>delete productos[k]);
-  actualizarResumen();
-});
+    /* ---------- TEXTO TICKET VENTA ---------- */
 
-btnCobrar.addEventListener('click', async ()=>{
-  if (Object.keys(productos).length===0) {
-    alert('No hay productos en la venta.');
-    return;
-  }
+    function generarTextoTicket() {
+      const fechaStr = new Date().toLocaleString("es-CL");
+      const { items, total } = calcularVentaActual();
 
-  const fecha = new Date();
+      let ticket = "";
+      ticket += "COMPROBANTE VENTA - MEDIO MAYOR\n";
+      ticket += "     JARDÍN SEMILLITAS\n";
+      ticket += "-----------------------------\n";
+      ticket += fechaStr + "\n";
+      ticket += "-----------------------------\n";
 
-  actualizarTotalesDiaDesdeVenta();
+      if (items.length === 0) {
+        ticket += "SIN PRODUCTOS\n";
+      } else {
+        items.forEach((item) => {
+          ticket += `${item.cantidad} x ${item.nombre}\n`;
+          ticket += `   ${formatearCLP(
+            item.precio
+          )} c/u -> ${formatearCLP(item.subtotal)}\n`;
+        });
+      }
 
-  guardarTicketDelDia({
-    fechaHoraISO: fecha.toISOString(),
-    items: calcularVentaActual().items,
-    total: calcularVentaActual().total
-  });
+      ticket += "-----------------------------\n";
+      ticket += `TOTAL: ${formatearCLP(total)}\n`;
+      ticket += "Gracias por su compra\n\n\n";
 
-  await imprimirTicketBluetooth(generarTextoTicket());
+      return ticket;
+    }
 
-  Object.keys(productos).forEach(k=>delete productos[k]);
-  actualizarResumen();
-});
+    /* ---------- TEXTO CIERRE DETALLADO ---------- */
 
-btnVerCierre.addEventListener('click', ()=>{
-  cargarTotalesDia();
-  alert('Cierre del día actualizado.');
-});
+    function generarTextoCierreDiaDetallado() {
+      const { fechaClave } = obtenerTotalesHoy();
+      const { tickets } = obtenerTicketsHoy();
 
-btnImprimirCierre.addEventListener('click', async ()=>{
-  await imprimirTicketBluetooth(generarTextoCierreDiaDetallado());
-});
+      let ticket = "";
+      ticket += "         CIERRE DEL DÍA         \n";
+      ticket += " EMPANADAS / PAPAS - SEMILLITAS \n";
+      ticket += "-----------------------------\n";
+      ticket += `Fecha: ${fechaClave}\n`;
+      ticket += "-----------------------------\n";
 
+      if (tickets.length === 0) {
+        ticket += "SIN VENTAS REGISTRADAS\n\n\n";
+        return ticket;
+      }
 
-btnResetCierre.addEventListener('click', ()=>{
-  const fechaClave=getFechaClave();
-  let tot={},tick={},cierres={};
+      let totalGeneral = 0;
+      let totalEmpanadas = 0;
+      let totalPapas = 0;
 
-  try{tot = JSON.parse(localStorage.getItem(STORAGE_KEY_TOTALES)||'{}');}catch(e){}
-  try{tick = JSON.parse(localStorage.getItem(STORAGE_KEY_TICKETS)||'{}');}catch(e){}
-  try{cierres = JSON.parse(localStorage.getItem(STORAGE_KEY_CIERRES)||'{}');}catch(e){}
+      tickets.forEach((tk, idx) => {
+        const fechaVenta = tk.fechaHoraISO
+          ? new Date(tk.fechaHoraISO)
+          : new Date();
+        const hora = fechaVenta.toLocaleTimeString("es-CL", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
 
-  if (!tot[fechaClave] && !tick[fechaClave]) {
-    alert('No hay datos del día.');
-    return;
-  }
+        ticket += `Ticket #${idx + 1} - ${hora}\n`;
 
-  if(!confirm("ATENCIÓN (1/3): ¿Seguro que quieres resetear el día?"))return;
-  if(!confirm("CONFIRMACIÓN (2/3): Esta acción es irreversible. ¿Continuar?"))return;
-  if(!confirm("ÚLTIMA (3/3): ¿Confirmas cierre definitivo del día?"))return;
+        tk.items.forEach((item) => {
+          ticket += ` ${item.cantidad}x ${item.nombre}\n`;
+          ticket += `   -> ${formatearCLP(item.subtotal)}\n`;
 
-  const totHoy = tot[fechaClave] || {empanadas:0,papas:0,total:0};
-  const ahora = new Date();
+          if (item.nombre === "Empanada de queso") {
+            totalEmpanadas += item.cantidad;
+          } else if (item.nombre === "Papas fritas") {
+            totalPapas += item.cantidad;
+          }
+        });
 
-  if(!cierres[fechaClave]) cierres[fechaClave]=[];
-  cierres[fechaClave].push({
-    fecha: fechaClave,
-    cierreISO: ahora.toISOString(),
-    cierreHoraLocal: ahora.toLocaleString('es-CL'),
-    totalEmpanadas: totHoy.empanadas,
-    totalPapas: totHoy.papas,
-    totalGeneral: totHoy.total
-  });
+        totalGeneral += tk.total;
+        ticket += ` TOTAL TICKET: ${formatearCLP(tk.total)}\n`;
+        ticket += "-----------------------------\n";
+      });
 
-  localStorage.setItem(STORAGE_KEY_CIERRES, JSON.stringify(cierres));
+      ticket += "RESUMEN DEL DÍA\n";
+      ticket += ` Empanadas: ${totalEmpanadas}\n`;
+      ticket += ` Papas fritas: ${totalPapas}\n`;
+      ticket += ` TOTAL GENERAL: ${formatearCLP(totalGeneral)}\n\n\n`;
 
-  delete tot[fechaClave];
-  delete tick[fechaClave];
+      return ticket;
+    }
 
-  localStorage.setItem(STORAGE_KEY_TOTALES, JSON.stringify(tot));
-  localStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(tick));
+    /* ---------- IMPRESIÓN USB EN MAC (window.print) ---------- */
 
-  cargarTotalesDia();
-  alert("Día reseteado y cierre guardado.");
-});
+    async function imprimirTicketBluetooth(ticketTexto) {
+      const printWindow = window.open("", "_blank", "width=400,height=600");
 
+      if (!printWindow) {
+        alert(
+          "El navegador bloqueó la ventana emergente. Habilita popups para poder imprimir."
+        );
+        return;
+      }
 
-/* Estado inicial */
-actualizarResumen();
-cargarTotalesDia();
-</script>
+      const safe = ticketTexto
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 
+      printWindow.document.open();
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Ticket</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 8px;
+              font-family: "Courier New", monospace;
+            }
+            .ticket {
+              width: 230px; /* aprox. rollo 58mm */
+              font-size: 12px;
+              white-space: pre-wrap;
+            }
+            @page {
+              margin: 5mm;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="ticket">${safe}</div>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+      // Pequeño delay para asegurar que el contenido cargó antes de imprimir
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 300);
+    }
+
+    /* ---------- EVENTOS ---------- */
+
+    document.querySelectorAll(".product-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const nombre = card.dataset.producto;
+        const precio = Number(card.dataset.precio);
+        agregarProducto(nombre, precio);
+      });
+    });
+
+    btnNueva.addEventListener("click", () => {
+      Object.keys(productos).forEach((k) => delete productos[k]);
+      actualizarResumen();
+    });
+
+    btnCobrar.addEventListener("click", async () => {
+      if (Object.keys(productos).length === 0) {
+        alert("No hay productos en la venta.");
+        return;
+      }
+
+      const fecha = new Date();
+      const { items, total } = calcularVentaActual();
+
+      // Actualizar totales del día
+      actualizarTotalesDiaDesdeVenta();
+
+      // Guardar ticket en historial del día
+      guardarTicketDelDia({
+        fechaHoraISO: fecha.toISOString(),
+        items,
+        total,
+      });
+
+      // Imprimir ticket
+      const ticketTexto = generarTextoTicket();
+      await imprimirTicketBluetooth(ticketTexto);
+
+      // Limpiar venta actual
+      Object.keys(productos).forEach((k) => delete productos[k]);
+      actualizarResumen();
+    });
+
+    btnVerCierre.addEventListener("click", () => {
+      cargarTotalesDia();
+      alert("Cierre del día actualizado en pantalla.");
+    });
+
+    btnImprimirCierre.addEventListener("click", async () => {
+      const ticketCierre = generarTextoCierreDiaDetallado();
+      await imprimirTicketBluetooth(ticketCierre);
+    });
+
+    btnResetCierre.addEventListener("click", () => {
+      const fechaClave = getFechaClave();
+      let dataTotales = {};
+      let dataTickets = {};
+      let dataCierres = {};
+
+      try {
+        dataTotales =
+          JSON.parse(localStorage.getItem(STORAGE_KEY_TOTALES) || "{}") || {};
+      } catch (e) {}
+      try {
+        dataTickets =
+          JSON.parse(localStorage.getItem(STORAGE_KEY_TICKETS) || "{}") || {};
+      } catch (e) {}
+      try {
+        dataCierres =
+          JSON.parse(localStorage.getItem(STORAGE_KEY_CIERRES) || "{}") || {};
+      } catch (e) {}
+
+      if (!dataTotales[fechaClave] && !dataTickets[fechaClave]) {
+        alert("No hay datos para hoy.");
+        return;
+      }
+
+      const c1 = confirm(
+        "ATENCIÓN (1/3): Vas a resetear TODAS las ventas de hoy. ¿Seguro?"
+      );
+      if (!c1) return;
+      const c2 = confirm(
+        "CONFIRMACIÓN (2/3): Esta acción NO se puede deshacer. ¿Continuar?"
+      );
+      if (!c2) return;
+      const c3 = confirm(
+        "ÚLTIMA CONFIRMACIÓN (3/3): ¿Confirmas el cierre definitivo del día?"
+      );
+      if (!c3) return;
+
+      const totalesHoy =
+        dataTotales[fechaClave] || { empanadas: 0, papas: 0, total: 0 };
+      const ahora = new Date();
+
+      if (!dataCierres[fechaClave]) {
+        dataCierres[fechaClave] = [];
+      }
+
+      dataCierres[fechaClave].push({
+        fecha: fechaClave,
+        cierreISO: ahora.toISOString(),
+        cierreHoraLocal: ahora.toLocaleString("es-CL"),
+        totalEmpanadas: totalesHoy.empanadas || 0,
+        totalPapas: totalesHoy.papas || 0,
+        totalGeneral: totalesHoy.total || 0,
+      });
+
+      localStorage.setItem(STORAGE_KEY_CIERRES, JSON.stringify(dataCierres));
+
+      delete dataTotales[fechaClave];
+      delete dataTickets[fechaClave];
+
+      localStorage.setItem(STORAGE_KEY_TOTALES, JSON.stringify(dataTotales));
+      localStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(dataTickets));
+
+      cargarTotalesDia();
+      alert("Datos del día reseteados y cierre guardado en el dispositivo.");
+    });
+
+    // Estado inicial
+    actualizarResumen();
+    cargarTotalesDia();
+  </script>
 </body>
 </html>
