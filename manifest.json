@@ -1,8 +1,9 @@
 {
   "name": "Ventas Medio Mayor - Jardín Semillitas",
   "short_name": "Ventas Semillitas",
-  "start_url": "index.html",
+  "start_url": "./index.html",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#1e293b",
   "icons": [
