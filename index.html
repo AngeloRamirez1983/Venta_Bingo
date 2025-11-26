@@ -28,6 +28,12 @@
       width: 100%;
       max-width: 480px;
       padding: 16px;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .header-logo {
@@ -41,18 +47,29 @@
       border-radius: 12px;
     }
 
-    h1 {
+    .app-title {
       text-align: center;
-      margin: 6px 0 4px;
-      font-size: 1.25rem;
-      font-weight: 700;
+      font-size: 1.55rem;
+      margin: 6px 0 0;
+      font-weight: 800;
+      letter-spacing: 0.5px;
     }
 
-    .subtitle {
+    .app-subtitle {
       text-align: center;
-      font-size: 0.85rem;
-      color: #cbd5f5;
+      font-size: 1.15rem;
+      margin: 2px 0 8px;
+      font-weight: 600;
+      color: #cdd6f6;
+      letter-spacing: 0.3px;
+    }
+
+    .app-description {
+      text-align: center;
+      font-size: 0.88rem;
+      color: #a8b0c7;
       margin-bottom: 12px;
+      margin-top: -4px;
     }
 
     .realtime-card,
@@ -96,6 +113,12 @@
       align-items: center;
       cursor: pointer;
       border: 2px solid transparent;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .product-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 14px rgba(0,0,0,0.4);
     }
 
     .product-card:active {
@@ -160,8 +183,9 @@
       <img src="img/semillitas.jpg" class="logo-img" alt="Jardín Semillitas">
     </div>
 
-    <h1>Ventas Nivel Medio Mayor - Jardín Semillitas</h1>
-    <p class="subtitle">Toca un producto para agregarlo a la venta actual.</p>
+    <h1 class="app-title">Ventas Nivel Medio Mayor</h1>
+    <h2 class="app-subtitle">Jardín Infantil Semillitas</h2>
+    <p class="app-description">Selecciona un producto para agregarlo a la venta actual.</p>
 
     <div class="realtime-card">
       <span>Venta acumulada hoy:</span>
@@ -181,12 +205,12 @@
     <div class="products-grid">
 
       <button class="product-card" data-producto="Empanada de queso" data-precio="1000">
-        <img src="img/empanada.jpg" class="product-image" alt="Empanada de queso">
+        <img src="img/empanada.jpg" class="product-image">
         Empanada de queso — $1.000
       </button>
 
       <button class="product-card" data-producto="Papas fritas" data-precio="2000">
-        <img src="img/papas.jpg" class="product-image" alt="Papas fritas">
+        <img src="img/papas.jpg" class="product-image">
         Papas fritas — $2.000
       </button>
 
@@ -246,8 +270,8 @@ function formatearCLP(v) {
 function formatFechaHora() {
   const d = new Date();
   const dia = String(d.getDate()).padStart(2, "0");
-  const mesNombres = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  const mes = mesNombres[d.getMonth()];
+  const meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const mes = meses[d.getMonth()];
   const anio = d.getFullYear();
 
   const horas = String(d.getHours()).padStart(2,"0");
@@ -258,10 +282,7 @@ function formatFechaHora() {
 
 function getFechaClave() {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const da = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${da}`;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
 function getLetraDia() {
@@ -278,10 +299,7 @@ function getCodigoTicket(numero) {
 ---------------------------- */
 function obtenerCorrelativoHoy() {
   const fechaClave = getFechaClave();
-  let data = {};
-  try { data = JSON.parse(localStorage.getItem(STORAGE_KEY_CORR) || "{}"); }
-  catch { data = {}; }
-
+  let data = JSON.parse(localStorage.getItem(STORAGE_KEY_CORR) || "{}");
   return { fechaClave, data, ultimo: data[fechaClave] || 0 };
 }
 
@@ -296,10 +314,7 @@ function actualizarTicketActualUI() {
 ---------------------------- */
 function obtenerStatsHoy() {
   const fechaClave = getFechaClave();
-  let data = {};
-  try { data = JSON.parse(localStorage.getItem(STORAGE_KEY_STATS) || "{}"); }
-  catch { data = {}; }
-
+  let data = JSON.parse(localStorage.getItem(STORAGE_KEY_STATS) || "{}");
   const stats = data[fechaClave] || { totalVentas:0, cantidadVentas:0 };
   return { fechaClave, data, stats };
 }
@@ -312,14 +327,10 @@ function guardarStatsHoy(fecha, data, stats) {
 function cargarStatsDia() {
   const { fechaClave, stats } = obtenerStatsHoy();
 
-  document.getElementById("realtime-amount").textContent =
-    formatearCLP(stats.totalVentas);
-
-  document.getElementById("stats-cantidad-ventas")
-    .textContent = `${stats.cantidadVentas} venta${stats.cantidadVentas!==1?"s":""}`;
-
-  document.getElementById("stats-total-ventas")
-    .textContent = formatearCLP(stats.totalVentas);
+  document.getElementById("realtime-amount").textContent = formatearCLP(stats.totalVentas);
+  document.getElementById("stats-cantidad-ventas").textContent =
+    `${stats.cantidadVentas} venta${stats.cantidadVentas!==1?"s":""}`;
+  document.getElementById("stats-total-ventas").textContent = formatearCLP(stats.totalVentas);
 
   document.getElementById("cierre-fecha").textContent = fechaClave;
   document.getElementById("cierre-cantidad").textContent =
@@ -372,7 +383,7 @@ function renderVentaActual() {
 }
 
 /* ---------------------------
-   IMPRESIÓN POS
+   IMPRESIÓN POS 58mm (224px)
 ---------------------------- */
 function imprimirTicket(texto) {
   const w = window.open("", "_blank", "width=300,height=800");
@@ -393,7 +404,7 @@ function imprimirTicket(texto) {
       .ticket {
         width:224px;
         padding:8px;
-        font-size:16px;
+        font-size:15px;
         font-weight:700;
         white-space:pre-wrap;
         word-wrap:break-word;
@@ -418,13 +429,13 @@ function imprimirTicket(texto) {
    RESUMEN POR PRODUCTO
 ---------------------------- */
 function agruparProductos() {
-  const mapa = {};
+  const map = {};
   lineasVenta.forEach(l => {
-    if(!mapa[l.nombre]) mapa[l.nombre]={qty:0,total:0};
-    mapa[l.nombre].qty++;
-    mapa[l.nombre].total += l.precio;
+    if (!map[l.nombre]) map[l.nombre] = { qty:0, total:0 };
+    map[l.nombre].qty++;
+    map[l.nombre].total += l.precio;
   });
-  return mapa;
+  return map;
 }
 
 /* ---------------------------
@@ -449,10 +460,10 @@ function generarTicketVenta(codigo, total) {
 
   t+="------------------------------\n";
   t+="RESUMEN:\n";
-  Object.keys(resumen).forEach(prod=>{
-    const r=resumen[prod];
+  for (const prod in resumen) {
+    const r = resumen[prod];
     t+=`- ${prod} x ${r.qty} = ${formatearCLP(r.total)}\n`;
-  });
+  }
 
   t+="------------------------------\n";
   t+=`TOTAL: ${formatearCLP(total)}\n`;
@@ -470,7 +481,7 @@ function generarTicketCierre() {
   let t="";
   t+="        CIERRE DEL DÍA\n";
   t+="     NIVEL MEDIO MAYOR\n";
-  t+="       SEMILLITAS\n";
+  t+="        SEMILLITAS\n";
   t+="------------------------------\n";
   t+="Fecha: "+fechaClave+"\n";
   t+="------------------------------\n";
