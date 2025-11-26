@@ -11,7 +11,8 @@
   <style>
     * {
       box-sizing: border-box;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
     }
 
     body {
@@ -54,7 +55,7 @@
       margin-bottom: 12px;
     }
 
-    /* Venta acumulada arriba */
+    /* Tarjetas superiores */
     .realtime-card,
     .ticket-info,
     .stats-card {
@@ -80,6 +81,7 @@
       font-weight: bold;
     }
 
+    /* Productos */
     .products-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -95,16 +97,23 @@
       flex-direction: column;
       align-items: center;
       cursor: pointer;
+      border: 2px solid #1e293b;
+    }
+
+    .product-card:active {
+      transform: scale(0.97);
+      border-color: #38bdf8;
     }
 
     .product-image {
       width: 100%;
-      aspect-ratio: 4/3;
+      aspect-ratio: 4 / 3;
       object-fit: cover;
       border-radius: 10px;
       margin-bottom: 8px;
     }
 
+    /* Venta actual */
     .summary-card {
       background: #020617;
       border-radius: 12px;
@@ -144,21 +153,20 @@
       background: #dc2626;
       color: #fff;
     }
-
   </style>
 </head>
 
 <body>
   <div class="app-container">
-
+    <!-- Logo -->
     <div class="header-logo">
-      <img src="img/semillitas.jpg" class="logo-img" alt="Jardín Semillitas">
+      <img src="img/semillitas.jpg" class="logo-img" alt="Jardín Semillitas" />
     </div>
 
     <h1>Ventas Medio Mayor - Jardín Semillitas</h1>
     <p class="subtitle">Toca un producto para agregarlo a la venta actual.</p>
 
-    <!-- Venta acumulada hoy -->
+    <!-- Venta acumulada -->
     <div class="realtime-card">
       <span>Venta acumulada hoy:</span>
       <span id="realtime-amount">$0</span>
@@ -170,7 +178,7 @@
       <span id="ticket-actual">A00001</span>
     </div>
 
-    <!-- stats -->
+    <!-- Stats -->
     <div class="stats-card">
       <span id="stats-cantidad-ventas">0 ventas</span>
       <span id="stats-total-ventas">$0</span>
@@ -178,13 +186,25 @@
 
     <!-- Productos -->
     <div class="products-grid">
-      <button class="product-card" data-producto="Empanada de queso" data-precio="1000">
-        <img src="img/empanada.jpg" class="product-image" alt="Empanada de queso">
+      <button
+        class="product-card"
+        data-producto="Empanada de queso"
+        data-precio="1000"
+      >
+        <img
+          src="img/empanada.jpg"
+          class="product-image"
+          alt="Empanada de queso"
+        />
         Empanada de queso — $1.000
       </button>
 
-      <button class="product-card" data-producto="Papas fritas" data-precio="2000">
-        <img src="img/papas.jpg" class="product-image" alt="Papas fritas">
+      <button
+        class="product-card"
+        data-producto="Papas fritas"
+        data-precio="2000"
+      >
+        <img src="img/papas.jpg" class="product-image" alt="Papas fritas" />
         Papas fritas — $2.000
       </button>
     </div>
@@ -196,7 +216,13 @@
 
       <h3>Total: <span id="total-amount">$0</span></h3>
 
-      <button id="btn-nueva" class="btn" style="background:#334155;color:white;">Nueva venta</button>
+      <button
+        id="btn-nueva"
+        class="btn"
+        style="background:#334155;color:white;"
+      >
+        Nueva venta
+      </button>
       <button id="btn-cobrar" class="btn btn-pay">Cobrar / Imprimir</button>
     </div>
 
@@ -206,304 +232,373 @@
       <p id="cierre-cantidad"></p>
       <p id="cierre-total"></p>
 
-      <button id="btn-ver-cierre" class="btn" style="background:#334155;color:white;">Ver cierre</button>
-      <button id="btn-imprimir-cierre" class="btn" style="background:#22c55e;">Imprimir cierre</button>
+      <button
+        id="btn-ver-cierre"
+        class="btn"
+        style="background:#334155;color:white;"
+      >
+        Ver cierre
+      </button>
+      <button id="btn-imprimir-cierre" class="btn" style="background:#22c55e;">
+        Imprimir cierre
+      </button>
       <button id="btn-reset-cierre" class="btn btn-danger">Reset día</button>
     </div>
-
   </div>
 
-<script>
-/* ---------------------------
-   SERVICE WORKER
----------------------------- */
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js");
-}
+  <script>
+    /* ---------------------------
+       SERVICE WORKER
+    ---------------------------- */
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js");
+    }
 
-/* ---------------------------
-   STORAGE KEYS
----------------------------- */
-const STORAGE_KEY_STATS = "semillitasStatsDia";
-const STORAGE_KEY_CORR  = "semillitasCorrelativoDia";
+    /* ---------------------------
+       STORAGE KEYS
+    ---------------------------- */
+    const STORAGE_KEY_STATS = "semillitasStatsDia";
+    const STORAGE_KEY_CORR = "semillitasCorrelativoDia";
 
-/* ---------------------------
-   ESTADO GLOBAL
----------------------------- */
-let lineasVenta = [];
+    /* ---------------------------
+       ESTADO GLOBAL
+    ---------------------------- */
+    let lineasVenta = [];
 
-/* ---------------------------
-   UTILIDADES
----------------------------- */
-function formatearCLP(v) {
-  return v.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
-}
+    /* ---------------------------
+       UTILIDADES
+    ---------------------------- */
+    function formatearCLP(v) {
+      return v.toLocaleString("es-CL", {
+        style: "currency",
+        currency: "CLP",
+        maximumFractionDigits: 0,
+      });
+    }
 
-function getFechaClave() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const da = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${da}`;
-}
+    function getFechaClave() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const da = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${da}`;
+    }
 
-/* letra depende del día del mes */
-function getLetraDia() {
-  const dia = new Date().getDate();
-  const index = (dia - 1) % 26; 
-  return String.fromCharCode("A".charCodeAt(0) + index);
-}
+    /* letra depende del día del mes */
+    function getLetraDia() {
+      const dia = new Date().getDate();
+      const index = (dia - 1) % 26;
+      return String.fromCharCode("A".charCodeAt(0) + index);
+    }
 
-function getCodigoTicket(numero) {
-  const letra = getLetraDia();
-  return letra + String(numero).padStart(5, "0");
-}
+    function getCodigoTicket(numero) {
+      const letra = getLetraDia();
+      return letra + String(numero).padStart(5, "0");
+    }
 
-/* ---------------------------
-   CORRELATIVO
----------------------------- */
-function obtenerCorrelativoHoy() {
-  const fechaClave = getFechaClave();
-  let data = {};
-  try {
-    data = JSON.parse(localStorage.getItem(STORAGE_KEY_CORR) || "{}");
-  } catch { data = {}; }
+    /* ---------------------------
+       CORRELATIVO
+    ---------------------------- */
+    function obtenerCorrelativoHoy() {
+      const fechaClave = getFechaClave();
+      let data = {};
+      try {
+        data = JSON.parse(localStorage.getItem(STORAGE_KEY_CORR) || "{}");
+      } catch {
+        data = {};
+      }
 
-  const ultimo = data[fechaClave] || 0;
-  return { fechaClave, data, ultimo };
-}
+      const ultimo = data[fechaClave] || 0;
+      return { fechaClave, data, ultimo };
+    }
 
-function actualizarTicketActualUI() {
-  const { ultimo } = obtenerCorrelativoHoy();
-  const siguiente = ultimo + 1;
-  document.getElementById("ticket-actual").textContent = getCodigoTicket(siguiente);
-}
+    function actualizarTicketActualUI() {
+      const { ultimo } = obtenerCorrelativoHoy();
+      const siguiente = ultimo + 1;
+      document.getElementById("ticket-actual").textContent =
+        getCodigoTicket(siguiente);
+    }
 
-/* ---------------------------
-   STATS DEL DÍA
----------------------------- */
-function obtenerStatsHoy() {
-  const fechaClave = getFechaClave();
-  let data = {};
-  try {
-    data = JSON.parse(localStorage.getItem(STORAGE_KEY_STATS) || "{}");
-  } catch { data = {}; }
+    /* ---------------------------
+       STATS DEL DÍA
+    ---------------------------- */
+    function obtenerStatsHoy() {
+      const fechaClave = getFechaClave();
+      let data = {};
+      try {
+        data = JSON.parse(localStorage.getItem(STORAGE_KEY_STATS) || "{}");
+      } catch {
+        data = {};
+      }
 
-  const stats = data[fechaClave] || { totalVentas: 0, cantidadVentas: 0 };
-  return { fechaClave, data, stats };
-}
+      const stats = data[fechaClave] || {
+        totalVentas: 0,
+        cantidadVentas: 0,
+      };
+      return { fechaClave, data, stats };
+    }
 
-function guardarStatsHoy(fecha, data, stats) {
-  data[fecha] = stats;
-  localStorage.setItem(STORAGE_KEY_STATS, JSON.stringify(data));
-}
+    function guardarStatsHoy(fecha, data, stats) {
+      data[fecha] = stats;
+      localStorage.setItem(STORAGE_KEY_STATS, JSON.stringify(data));
+    }
 
-function cargarStatsDia() {
-  const { fechaClave, stats } = obtenerStatsHoy();
+    function cargarStatsDia() {
+      const { fechaClave, stats } = obtenerStatsHoy();
 
-  document.getElementById("realtime-amount").textContent = formatearCLP(stats.totalVentas);
-  document.getElementById("stats-cantidad-ventas").textContent =
-      `${stats.cantidadVentas} venta${stats.cantidadVentas !== 1 ? "s" : ""}`;
-  document.getElementById("stats-total-ventas").textContent = formatearCLP(stats.totalVentas);
+      document.getElementById("realtime-amount").textContent =
+        formatearCLP(stats.totalVentas);
+      document.getElementById(
+        "stats-cantidad-ventas"
+      ).textContent = `${stats.cantidadVentas} venta${
+        stats.cantidadVentas !== 1 ? "s" : ""
+      }`;
+      document.getElementById("stats-total-ventas").textContent =
+        formatearCLP(stats.totalVentas);
 
-  document.getElementById("cierre-fecha").textContent = fechaClave;
-  document.getElementById("cierre-cantidad").textContent = `Cantidad de ventas: ${stats.cantidadVentas}`;
-  document.getElementById("cierre-total").textContent = `Total vendido: ${formatearCLP(stats.totalVentas)}`;
-}
+      document.getElementById("cierre-fecha").textContent = fechaClave;
+      document.getElementById(
+        "cierre-cantidad"
+      ).textContent = `Cantidad de ventas: ${stats.cantidadVentas}`;
+      document.getElementById(
+        "cierre-total"
+      ).textContent = `Total vendido: ${formatearCLP(stats.totalVentas)}`;
+    }
 
-/* ---------------------------
-   VENTA ACTUAL
----------------------------- */
-function agregarLinea(nombre, precio) {
-  lineasVenta.push({ nombre, precio });
-  renderVentaActual();
-}
+    /* ---------------------------
+       VENTA ACTUAL
+    ---------------------------- */
+    function agregarLinea(nombre, precio) {
+      lineasVenta.push({ nombre, precio });
+      renderVentaActual();
+    }
 
-function renderVentaActual() {
-  const list = document.getElementById("summary-list");
-  const totalEl = document.getElementById("total-amount");
+    function renderVentaActual() {
+      const list = document.getElementById("summary-list");
+      const totalEl = document.getElementById("total-amount");
 
-  if (!lineasVenta.length) {
-    list.innerHTML = "<p style='opacity:0.6;'>Aún no agregas productos.</p>";
-    totalEl.textContent = "$0";
-    return;
-  }
+      if (!lineasVenta.length) {
+        list.innerHTML = "<p style='opacity:0.6;'>Aún no agregas productos.</p>";
+        totalEl.textContent = "$0";
+        return;
+      }
 
-  list.innerHTML = "";
-  let total = 0;
+      list.innerHTML = "";
+      let total = 0;
 
-  lineasVenta.forEach((l, index) => {
-    total += l.precio;
+      lineasVenta.forEach((l, index) => {
+        total += l.precio;
 
-    const row = document.createElement("div");
-    row.innerHTML = `
-      <span>- ${l.nombre} (1)</span>
-      <button data-index="${index}" 
-        style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:2px 6px;cursor:pointer;">
-        X
-      </button>`;
+        const row = document.createElement("div");
+        row.innerHTML = `
+        <span>- ${l.nombre} (1)</span>
+        <button data-index="${index}"
+          style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:2px 6px;cursor:pointer;">
+          X
+        </button>`;
 
-    row.querySelector("button").addEventListener("click", () => {
-      lineasVenta.splice(index, 1);
+        row.querySelector("button").addEventListener("click", () => {
+          lineasVenta.splice(index, 1);
+          renderVentaActual();
+        });
+
+        list.appendChild(row);
+      });
+
+      totalEl.textContent = formatearCLP(total);
+    }
+
+    /* ---------------------------
+       IMPRESIÓN POS REAL
+    ---------------------------- */
+    function imprimirTicket(texto) {
+      const w = window.open("", "_blank", "width=300,height=800");
+      const safe = texto
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      w.document.write(`
+      <!DOCTYPE html>
+      <html><head>
+        <meta charset="utf-8" />
+        <style>
+          body { margin:0; padding:0; font-family:"Consolas","DejaVu Sans Mono",monospace; }
+          .ticket {
+            width:224px;
+            padding:8px;
+            font-size:16px;
+            font-weight:700;
+            white-space:pre;
+            line-height:1.25;
+          }
+          @page { margin:0; }
+        </style>
+      </head>
+      <body>
+        <div class="ticket">${safe}</div>
+      </body>
+      </html>
+      `);
+
+      w.document.close();
+      w.focus();
+      setTimeout(() => w.print(), 250);
+    }
+
+    /* ---------------------------
+       RESUMEN POR PRODUCTO
+    ---------------------------- */
+    function agruparProductos() {
+      const mapa = {}; // nombre -> { qty, total }
+
+      lineasVenta.forEach((l) => {
+        if (!mapa[l.nombre]) {
+          mapa[l.nombre] = { qty: 0, total: 0 };
+        }
+        mapa[l.nombre].qty += 1;
+        mapa[l.nombre].total += l.precio;
+      });
+
+      return mapa;
+    }
+
+    /* ---------------------------
+       GENERAR TICKET VENTA
+    ---------------------------- */
+    function generarTicketVenta(codigo, total) {
+      let t = "";
+      t += "   COMPROBANTE DE VENTA\n";
+      t += "     JARDÍN SEMILLITAS\n";
+      t += "------------------------------\n";
+      t += "Fecha: " + new Date().toLocaleString("es-CL") + "\n";
+      t += "Ticket: " + codigo + "\n";
+      t += "------------------------------\n";
+
+      t += "DETALLE:\n";
+      lineasVenta.forEach((l) => {
+        t += `- ${l.nombre}\n`;
+        t += `   ${formatearCLP(l.precio)}\n`;
+      });
+
+      /* RESUMEN POR PRODUCTO */
+      const resumen = agruparProductos();
+
+      t += "------------------------------\n";
+      t += "RESUMEN:\n";
+
+      Object.keys(resumen).forEach((prod) => {
+        const r = resumen[prod];
+        t += `- ${prod} x ${r.qty} = ${formatearCLP(r.total)}\n`;
+      });
+
+      t += "------------------------------\n";
+      t += `TOTAL: ${formatearCLP(total)}\n`;
+      t += "------------------------------\n";
+      t += "Gracias por su compra\n\n";
+
+      return t;
+    }
+
+    /* ---------------------------
+       GENERAR TICKET CIERRE
+    ---------------------------- */
+    function generarTicketCierre() {
+      const { fechaClave, stats } = obtenerStatsHoy();
+      let t = "";
+      t += "        CIERRE DEL DÍA\n";
+      t += "      JARDÍN SEMILLITAS\n";
+      t += "------------------------------\n";
+      t += "Fecha: " + fechaClave + "\n";
+      t += "------------------------------\n";
+      t += `Ventas totales: ${stats.cantidadVentas}\n`;
+      t += `Total vendido:  ${formatearCLP(stats.totalVentas)}\n`;
+      t += "------------------------------\n";
+      t += "Fin del cierre\n\n";
+      return t;
+    }
+
+    /* ---------------------------
+       EVENTOS
+    ---------------------------- */
+    document.querySelectorAll(".product-card").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        agregarLinea(btn.dataset.producto, Number(btn.dataset.precio));
+      });
+    });
+
+    document.getElementById("btn-nueva").addEventListener("click", () => {
+      lineasVenta = [];
       renderVentaActual();
     });
 
-    list.appendChild(row);
-  });
+    /* COBRAR */
+    document.getElementById("btn-cobrar").addEventListener("click", () => {
+      if (!lineasVenta.length) {
+        alert("No hay productos agregados.");
+        return;
+      }
 
-  totalEl.textContent = formatearCLP(total);
-}
+      const totalTicket = lineasVenta.reduce((s, l) => s + l.precio, 0);
 
-/* ---------------------------
-   IMPRESIÓN POS REAL
----------------------------- */
-function imprimirTicket(texto) {
-  const w = window.open("", "_blank", "width=300,height=600");
-  const safe = texto
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;");
+      /* correlativo */
+      const { fechaClave, data: corrData, ultimo } = obtenerCorrelativoHoy();
+      const numeroNuevo = ultimo + 1;
+      corrData[fechaClave] = numeroNuevo;
+      localStorage.setItem(STORAGE_KEY_CORR, JSON.stringify(corrData));
+      const codigoTicket = getCodigoTicket(numeroNuevo);
 
-  w.document.write(`
-    <!DOCTYPE html>
-    <html><head>
-      <meta charset="utf-8" />
-      <style>
-        body { margin:0; padding:0; font-family:"Courier New", monospace; }
-        .ticket {
-          width:224px;
-          padding:8px;
-          font-size:13px;
-          white-space:pre;
-          line-height:1.3;
-        }
-        @page { margin:0; }
-      </style>
-    </head>
-    <body>
-      <div class="ticket">${safe}</div>
-    </body>
-    </html>
-  `);
+      /* Stats */
+      const statsData = obtenerStatsHoy();
+      statsData.stats.cantidadVentas++;
+      statsData.stats.totalVentas += totalTicket;
+      guardarStatsHoy(statsData.fechaClave, statsData.data, statsData.stats);
 
-  w.document.close();
-  w.focus();
-  setTimeout(() => w.print(), 200);
-}
+      cargarStatsDia();
 
-/* ---------------------------
-   GENERACIÓN DE TICKETS
----------------------------- */
-function generarTicketVenta(codigo, total) {
-  let t = "";
-  t += "   COMPROBANTE DE VENTA\n";
-  t += "     JARDÍN SEMILLITAS\n";
-  t += "------------------------------\n";
-  t += "Fecha: " + new Date().toLocaleString("es-CL") + "\n";
-  t += "Ticket: " + codigo + "\n";
-  t += "------------------------------\n";
-  t += "PRODUCTOS:\n";
+      /* Imprimir */
+      imprimirTicket(generarTicketVenta(codigoTicket, totalTicket));
 
-  lineasVenta.forEach(l => t += `- ${l.nombre}\n   ${formatearCLP(l.precio)}\n`);
+      /* Reset venta actual */
+      lineasVenta = [];
+      renderVentaActual();
+      actualizarTicketActualUI();
+    });
 
-  t += "------------------------------\n";
-  t += `TOTAL: ${formatearCLP(total)}\n`;
-  t += "------------------------------\n";
-  t += "Gracias por su compra\n\n";
+    /* Ver cierre */
+    document.getElementById("btn-ver-cierre").addEventListener("click", () => {
+      cargarStatsDia();
+      alert("Cierre del día actualizado.");
+    });
 
-  return t;
-}
+    /* Imprimir cierre */
+    document
+      .getElementById("btn-imprimir-cierre")
+      .addEventListener("click", () => {
+        imprimirTicket(generarTicketCierre());
+      });
 
-function generarTicketCierre() {
-  const { fechaClave, stats } = obtenerStatsHoy();
-  let t = "";
-  t += "        CIERRE DEL DÍA\n";
-  t += "      JARDÍN SEMILLITAS\n";
-  t += "------------------------------\n";
-  t += "Fecha: " + fechaClave + "\n";
-  t += "------------------------------\n";
-  t += `Ventas totales: ${stats.cantidadVentas}\n`;
-  t += `Total vendido:  ${formatearCLP(stats.totalVentas)}\n`;
-  t += "------------------------------\n";
-  t += "Fin del cierre\n\n";
-  return t;
-}
+    /* Reset día */
+    document
+      .getElementById("btn-reset-cierre")
+      .addEventListener("click", () => {
+        if (!confirm("¿Seguro de eliminar todas las ventas de hoy?")) return;
 
-/* ---------------------------
-   EVENTOS
----------------------------- */
-document.querySelectorAll(".product-card").forEach(btn => {
-  btn.addEventListener("click", () => {
-    agregarLinea(btn.dataset.producto, Number(btn.dataset.precio));
-  });
-});
+        const { fechaClave, data, stats } = obtenerStatsHoy();
+        stats.cantidadVentas = 0;
+        stats.totalVentas = 0;
+        guardarStatsHoy(fechaClave, data, stats);
+        cargarStatsDia();
 
-document.getElementById("btn-nueva").addEventListener("click", () => {
-  lineasVenta = [];
-  renderVentaActual();
-});
+        alert("Ventas del día reseteadas.");
+      });
 
-/* COBRAR */
-document.getElementById("btn-cobrar").addEventListener("click", () => {
-  if (!lineasVenta.length) {
-    alert("No hay productos agregados.");
-    return;
-  }
-
-  const totalTicket = lineasVenta.reduce((s,l)=>s+l.precio,0);
-
-  /* Correlativo */
-  const { fechaClave, data: corrData, ultimo } = obtenerCorrelativoHoy();
-  const numeroNuevo = ultimo + 1;
-  corrData[fechaClave] = numeroNuevo;
-  localStorage.setItem(STORAGE_KEY_CORR, JSON.stringify(corrData));
-  const codigoTicket = getCodigoTicket(numeroNuevo);
-
-  /* Stats */
-  const statsData = obtenerStatsHoy();
-  statsData.stats.cantidadVentas++;
-  statsData.stats.totalVentas += totalTicket;
-  guardarStatsHoy(statsData.fechaClave, statsData.data, statsData.stats);
-  cargarStatsDia();
-
-  /* Imprimir */
-  imprimirTicket(generarTicketVenta(codigoTicket, totalTicket));
-
-  /* Reset venta actual */
-  lineasVenta = [];
-  renderVentaActual();
-  actualizarTicketActualUI();
-});
-
-/* Cierre */
-document.getElementById("btn-ver-cierre").addEventListener("click", () => {
-  cargarStatsDia();
-  alert("Cierre del día actualizado.");
-});
-
-document.getElementById("btn-imprimir-cierre").addEventListener("click", () => {
-  imprimirTicket(generarTicketCierre());
-});
-
-/* Reset día */
-document.getElementById("btn-reset-cierre").addEventListener("click", () => {
-  if (!confirm("¿Seguro de eliminar todas las ventas de hoy?")) return;
-  const { fechaClave, data, stats } = obtenerStatsHoy();
-  stats.cantidadVentas = 0;
-  stats.totalVentas = 0;
-  guardarStatsHoy(fechaClave, data, stats);
-  cargarStatsDia();
-  alert("Ventas del día reseteadas.");
-});
-
-/* ---------------------------
-   INICIAL
----------------------------- */
-renderVentaActual();
-cargarStatsDia();
-actualizarTicketActualUI();
-
-</script>
-
+    /* ---------------------------
+       INICIAL
+    ---------------------------- */
+    renderVentaActual();
+    cargarStatsDia();
+    actualizarTicketActualUI();
+  </script>
 </body>
 </html>
