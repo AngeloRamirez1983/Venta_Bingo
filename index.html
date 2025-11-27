@@ -387,26 +387,44 @@ function renderVentaActual() {
    IMPRESIÓN VIA PDF (jsPDF)
 ---------------------------- */
 function imprimirTicket(texto) {
+  // Verificamos que jsPDF esté disponible
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    alert("Error: jsPDF no se ha cargado. Revisa la conexión a Internet.");
+    console.error("jsPDF no encontrado en window.jspdf");
+    return;
+  }
+
   const { jsPDF } = window.jspdf;
 
-  // Formato tipo térmica: ancho ~58mm (unos 226 pt), alto grande y luego ajustamos
+  // Formato tipo térmica: 58mm de ancho, 200mm de alto (más que suficiente)
   const doc = new jsPDF({
-    unit: "pt",
-    format: [226, 1000]  // ancho fijo, alto se recorta luego
+    unit: "mm",
+    format: [58, 200],  // [ancho, alto] en mm
   });
 
-  const lineas = texto.split("\n");
-  let x = 10;          // margen izq
-  let y = 20;          // inicio arriba
-  const lineHeight = 16;
-
+  // Texto en negro, font monoespaciada
   doc.setFont("courier", "bold");
-  doc.setFontSize(13);
+  doc.setFontSize(8);
 
-  lineas.forEach(linea => {
-    doc.text(linea, x, y);
+  const lineas = texto.split(/\r?\n/);
+  let x = 2;    // margen izquierdo en mm
+  let y = 6;    // margen superior en mm
+  const lineHeight = 4; // espacio entre líneas
+
+  lineas.forEach((linea) => {
+    // Evitamos escribir fuera de la página
+    if (y > 190) return;
+    doc.text(linea || " ", x, y);
     y += lineHeight;
   });
+
+  // OPCIÓN 1: abrir el PDF en otra pestaña para que lo veas
+  const blobUrl = doc.output("bloburl");
+  window.open(blobUrl, "_blank");
+
+  // Si prefieres descargar directo, puedes usar esto en vez de lo anterior:
+  // doc.save("ticket-semillitas.pdf");
+}
 
   // Ajusta la altura real de la página a lo que usamos
   doc.internal.pageSize.height = y + 20;
