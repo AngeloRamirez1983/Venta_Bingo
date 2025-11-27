@@ -4,11 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>Ventas Medio Mayor - Escuela Semillitas</title>
+  <title>Ventas Medio Mayor - Jardín Semillitas</title>
 
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#1e293b" />
 
+  <!-- ESTILOS -->
   <style>
     body {
       margin: 0;
@@ -97,9 +98,6 @@
       justify-content: space-between;
       margin-bottom: 6px;
     }
-    .summary-list p {
-      margin: 4px 0;
-    }
     .line-item {
       display: flex;
       justify-content: space-between;
@@ -139,8 +137,11 @@
     .btn-danger { background:#dc2626; color:#fff; border:2px solid #7f1d1d;}
   </style>
 
-  <!-- jsPDF CDN -->
+  <!-- jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- SheetJS para Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 </head>
 <body>
@@ -148,11 +149,10 @@
   <div class="app-container">
 
     <div class="header-logo">
-      <!-- Cambia a img/semillitas.jpg si tu archivo se llama así -->
-      <img src="img/semillitas.jpg" class="logo-img" alt="Escuela Semillitas" />
+      <img src="img/semillitas.jpg" class="logo-img" alt="Jardín Semillitas" />
     </div>
 
-    <h1>Ventas Nivel Medio Mayor<br>Escuela Semillitas</h1>
+    <h1>Ventas Nivel Medio Mayor<br>Jardín Semillitas</h1>
     <p class="subtitle">Toca un producto para agregarlo a la venta.</p>
 
     <div class="realtime-card">
@@ -208,6 +208,7 @@
       <div class="btn-row">
         <button id="btn-ver-cierre" class="btn btn-secondary">Ver</button>
         <button id="btn-imprimir-cierre" class="btn btn-primary">Imprimir</button>
+        <button id="btn-exportar-excel" class="btn btn-secondary">Exportar Excel</button>
         <button id="btn-reset-cierre" class="btn btn-danger">Reset</button>
       </div>
     </div>
@@ -215,35 +216,22 @@
   </div>
 
 <script>
-/* --------------------------------------------------------------
-   SERVICE WORKER
----------------------------------------------------------------- */
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js");
-}
+/* -----------------------------------------------------------------------
+   FUNCIONES BASE
+------------------------------------------------------------------------ */
 
-/* --------------------------------------------------------------
-   VARIABLES Y STORAGE
----------------------------------------------------------------- */
-const productos = [];
-const STORAGE_KEY_TOTALES  = "totalesDiaEmpanadasPapas";
-const STORAGE_KEY_CORR     = "semillitasCorrelativoDia";
-let logoDataUrl = null; // cache del logo para jsPDF
-
-/* --------------------------------------------------------------
-   FORMATEO FECHA / HORA / CLP
----------------------------------------------------------------- */
-function formatearCLP(v) {
-  return v.toLocaleString("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0});
+// Separador CLP con ".", sin depender del navegador
+function formatearCLP(valor) {
+  return "$" + valor.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
 function getFechaHoraPartes() {
   const f = new Date();
   const meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-  const d  = String(f.getDate()).padStart(2,"0");
-  const m  = meses[f.getMonth()];
-  const a  = f.getFullYear();
-  const h  = String(f.getHours()).padStart(2,"0");
+  const d = String(f.getDate()).padStart(2,"0");
+  const m = meses[f.getMonth()];
+  const a = f.getFullYear();
+  const h = String(f.getHours()).padStart(2,"0");
   const mm = String(f.getMinutes()).padStart(2,"0");
 
   return {
@@ -252,13 +240,23 @@ function getFechaHoraPartes() {
   };
 }
 
-function fechaClaveHoy(){
+function fechaClaveHoy() {
   return new Date().toISOString().slice(0,10);
 }
 
-/* --------------------------------------------------------------
-   VENTA ACTUAL (PANTALLA)
----------------------------------------------------------------- */
+/* -----------------------------------------------------------------------
+   VARIABLES Y STORAGE
+------------------------------------------------------------------------ */
+const productos = [];
+const STORAGE_KEY_TOTALES  = "totalesDiaEmpanadasPapas";
+const STORAGE_KEY_TICKETS  = "ticketsDiaEmpanadasPapas";
+const STORAGE_KEY_CORR     = "semillitasCorrelativoDia";
+
+let logoDataUrl = null;
+
+/* -----------------------------------------------------------------------
+   ACTUALIZACIÓN DE PANTALLA (VENTA)
+------------------------------------------------------------------------ */
 function actualizarResumen() {
   const cont = document.getElementById("summary-list");
   cont.innerHTML = "";
@@ -269,8 +267,8 @@ function actualizarResumen() {
     const row = document.createElement("div");
     row.className = "line-item";
     row.innerHTML = `
-        <span>- ${p.nombre} $${p.precio.toLocaleString()}</span>
-        <button class="remove-btn" data-index="${i}">X</button>
+      <span>- ${p.nombre} ${formatearCLP(p.precio)}</span>
+      <button class="remove-btn" data-index="${i}">X</button>
     `;
     cont.appendChild(row);
   });
@@ -297,9 +295,9 @@ document.querySelectorAll(".product-card").forEach(btn=>{
   };
 });
 
-/* --------------------------------------------------------------
-   TOTALES DEL DÍA
----------------------------------------------------------------- */
+/* -----------------------------------------------------------------------
+   CARGAR Y GUARDAR TOTALES DEL DÍA
+------------------------------------------------------------------------ */
 function cargarTotalesDia() {
   let data = JSON.parse(localStorage.getItem(STORAGE_KEY_TOTALES)||"{}");
   const hoy = fechaClaveHoy();
@@ -311,6 +309,7 @@ function cargarTotalesDia() {
   document.getElementById("cierre-total").textContent = `Total vendido: ${formatearCLP(t.total)}`;
   document.getElementById("realtime-amount").textContent = formatearCLP(t.total);
 }
+cargarTotalesDia();
 
 function actualizarTotalesDiaDesdeVenta() {
   let data = JSON.parse(localStorage.getItem(STORAGE_KEY_TOTALES)||"{}");
@@ -323,6 +322,7 @@ function actualizarTotalesDiaDesdeVenta() {
     if (p.nombre === "Emp. de queso") t.empanadas += 1;
     if (p.nombre === "Papas fritas") t.papas += 1;
   });
+
   t.total += totalVenta;
 
   data[hoy] = t;
@@ -330,11 +330,9 @@ function actualizarTotalesDiaDesdeVenta() {
   cargarTotalesDia();
 }
 
-cargarTotalesDia();
-
-/* --------------------------------------------------------------
-   CORRELATIVO TICKET
----------------------------------------------------------------- */
+/* -----------------------------------------------------------------------
+   CORRELATIVO POR DÍA
+------------------------------------------------------------------------ */
 function obtenerCorrelativoHoy() {
   const hoy = fechaClaveHoy();
   let data = JSON.parse(localStorage.getItem(STORAGE_KEY_CORR) || "{}");
@@ -346,8 +344,8 @@ function generarNumeroTicket() {
   const { hoy, data, actual } = obtenerCorrelativoHoy();
   const nuevo = actual + 1;
 
-  const mes = new Date().getMonth(); // 0..11
-  const letra = String.fromCharCode(65 + mes); // A..L
+  const mes = new Date().getMonth(); // A..L
+  const letra = String.fromCharCode(65 + mes);
 
   data[hoy] = nuevo;
   localStorage.setItem(STORAGE_KEY_CORR, JSON.stringify(data));
@@ -355,61 +353,9 @@ function generarNumeroTicket() {
   return `${letra}${String(nuevo).padStart(5,"0")}`;
 }
 
-/* --------------------------------------------------------------
-   TEXTO TICKET – DETALLE + RESUMEN CORTO
----------------------------------------------------------------- */
-function generarTextoTicket() {
-  const total = productos.reduce((s,p)=>s+p.precio,0);
-  const { fechaStr, horaStr } = getFechaHoraPartes();
-  const ticketId = generarNumeroTicket();
-
-  // Conteo por producto para resumen
-  const conteo = {};
-  productos.forEach(p=>{
-    if (!conteo[p.nombre]) conteo[p.nombre] = 0;
-    conteo[p.nombre] += 1;
-  });
-
-  // Detalle: listado línea por línea
-  let detalleListado = "";
-  productos.forEach(p=>{
-    detalleListado += `- ${p.nombre}\n`;
-  });
-
-  // Resumen corto (Emp. de queso = 3 un. / Papas fritas = 2 pcn.)
-  let resumenTxt = "";
-  for (const nombre in conteo) {
-    const qty = conteo[nombre];
-    const esPapas = (nombre === "Papas fritas");
-    const sufijo = esPapas ? "pcn." : "un.";
-    resumenTxt += `${nombre} = ${qty} ${sufijo}\n`;
-  }
-
-  let texto = "";
-  texto += "COMPROBANTE DE VENTA\n";
-  texto += "NIVEL MEDIO MAYOR\n";
-  texto += "Escuela SEMILLITAS\n";
-  texto += "------------------------------\n";
-  texto += `Fecha: ${fechaStr}\n`;
-  texto += `Hora:  ${horaStr}\n`;
-  texto += `Ticket: ${ticketId}\n`;
-  texto += "------------------------------\n";
-  texto += "DETALLE:\n";
-  texto += detalleListado || "- Sin productos\n";
-  texto += "------------------------------\n";
-  texto += "RESUMEN:\n";
-  texto += resumenTxt || "- Sin productos\n";
-  texto += "------------------------------\n";
-  texto += `Total a pagar: ${formatearCLP(total)}\n`;
-  texto += "------------------------------\n";
-  texto += "Gracias por su compra\n";
-
-  return texto;
-}
-
-/* --------------------------------------------------------------
-   LOGO DESDE EL <img> DEL HEADER (SIN FETCH)
----------------------------------------------------------------- */
+/* -----------------------------------------------------------------------
+   LOGO → BASE64 DESDE <img>
+------------------------------------------------------------------------ */
 async function obtenerLogoDataUrl() {
   if (logoDataUrl) return logoDataUrl;
 
@@ -418,8 +364,8 @@ async function obtenerLogoDataUrl() {
 
   if (!img.complete) {
     await new Promise(resolve => {
-      img.addEventListener("load", resolve, { once: true });
-      img.addEventListener("error", resolve, { once: true });
+      img.onload = resolve;
+      img.onerror = resolve;
     });
   }
 
@@ -427,71 +373,181 @@ async function obtenerLogoDataUrl() {
     const canvas = document.createElement("canvas");
     canvas.width  = img.naturalWidth;
     canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0);
+    canvas.getContext("2d").drawImage(img, 0, 0);
     logoDataUrl = canvas.toDataURL("image/jpeg");
     return logoDataUrl;
   } catch (e) {
-    console.error("No se pudo convertir el logo a base64:", e);
+    console.error("Error base64 logo:", e);
     return null;
   }
 }
 
-/* --------------------------------------------------------------
-   IMPRESIÓN POS-58 (48mm) CON LOGO, HELVETICA
----------------------------------------------------------------- */
-async function imprimirTicket(texto) {
-  if (!window.jspdf || !window.jspdf.jsPDF) {
-    alert("jsPDF no cargado");
-    return;
-  }
-  const { jsPDF } = window.jspdf;
+/* -----------------------------------------------------------------------
+   GENERAR TEXTO DEL TICKET
+------------------------------------------------------------------------ */
+function generarTextoTicket(ticketId) {
+  const total = productos.reduce((s,p)=>s+p.precio,0);
+  const { fechaStr, horaStr } = getFechaHoraPartes();
 
-  const lineas = texto.split(/\r?\n/);
-  const altura = 200; // generoso para no cortar nada
+  const conteo = {};
+  productos.forEach(p=>{
+    if (!conteo[p.nombre]) conteo[p.nombre] = 0;
+    conteo[p.nombre] += 1;
+  });
+
+  let detalle = "";
+  productos.forEach(p=> detalle += `- ${p.nombre}\n`);
+
+  let resumen = "";
+  for (const n in conteo) {
+    const qty = conteo[n];
+    const suf = (n === "Papas fritas") ? "pcn." : "un.";
+    resumen += `${n} = ${qty} ${suf}\n`;
+  }
+
+  return `
+COMPROBANTE DE VENTA
+NIVEL MEDIO MAYOR
+JARDÍN SEMILLITAS
+------------------------------
+Fecha: ${fechaStr}
+Hora:  ${horaStr}
+Ticket: ${ticketId}
+------------------------------
+DETALLE:
+${detalle}
+------------------------------
+RESUMEN:
+${resumen}
+------------------------------
+Total a pagar: ${formatearCLP(total)}
+------------------------------
+Gracias por su compra
+`.trim();
+}
+
+/* -----------------------------------------------------------------------
+   IMPRESIÓN CON jsPDF (POS-58)
+------------------------------------------------------------------------ */
+async function imprimirTicket(texto) {
+  const { jsPDF } = window.jspdf;
 
   const doc = new jsPDF({
     unit:"mm",
-    format:[48, altura]
+    format:[48, 200] // alto generoso
   });
 
   doc.setFont("helvetica","normal");
   doc.setFontSize(9);
 
-  let cursorY = 5;
+  let y = 5;
 
-  // Logo centrado (30mm ancho, 20mm alto)
-  const imgBase64 = await obtenerLogoDataUrl();
-  if (imgBase64) {
-    const logoAncho = 30;
-    const logoAlto  = 20;
-    const logoX = (48 - logoAncho) / 2;
-    doc.addImage(imgBase64, "JPEG", logoX, cursorY, logoAncho, logoAlto);
-    cursorY += logoAlto + 4;
+  const logo = await obtenerLogoDataUrl();
+  if (logo) {
+    const w = 30, h = 20;
+    const x = (48 - w) / 2;
+    doc.addImage(logo, "JPEG", x, y, w, h);
+    y += h + 4;
   }
 
-  const lineHeight = 4;
-  const maxWidth = 44; // 2mm de margen a cada lado
+  const lineas = texto.split(/\n/);
+  const lh = 4;
 
   lineas.forEach(l=>{
-    const linea = l || " ";
-    doc.text(linea, 2, cursorY, { maxWidth });
-    cursorY += lineHeight;
+    doc.text(l || " ", 2, y, { maxWidth: 44 });
+    y += lh;
   });
 
   window.open(doc.output("bloburl"), "_blank");
 }
 
-/* --------------------------------------------------------------
+/* -----------------------------------------------------------------------
+   GUARDAR TICKET DEL DÍA
+------------------------------------------------------------------------ */
+function guardarTicketDelDia(ticketRecord) {
+  let data = JSON.parse(localStorage.getItem(STORAGE_KEY_TICKETS) || "{}");
+  const hoy = fechaClaveHoy();
+
+  if (!data[hoy]) data[hoy] = [];
+  data[hoy].push(ticketRecord);
+
+  localStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(data));
+}
+
+/* -----------------------------------------------------------------------
+   EXPORTAR EXCEL
+------------------------------------------------------------------------ */
+async function exportarExcelDelDia() {
+  const hoy = fechaClaveHoy();
+  const ticketsData = JSON.parse(localStorage.getItem(STORAGE_KEY_TICKETS) || "{}");
+  const tickets = ticketsData[hoy] || [];
+
+  if (tickets.length === 0) {
+    alert("No hay ventas registradas para exportar.");
+    return;
+  }
+
+  const filas = [
+    ["Fecha","Hora","Producto","Cantidad","Precio Unit.","Subtotal","Ticket Nº"]
+  ];
+
+  tickets.forEach(tk=>{
+    const f = new Date(tk.fechaHoraISO);
+    const fechaStr = f.toLocaleDateString("es-CL");
+    const horaStr = f.toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"});
+
+    tk.items.forEach(item=>{
+      filas.push([
+        fechaStr,
+        horaStr,
+        item.nombre,
+        item.cantidad,
+        formatearCLP(item.precio),
+        formatearCLP(item.subtotal),
+        tk.ticketId
+      ]);
+    });
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(filas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Ventas");
+
+  const { fechaStr } = getFechaHoraPartes();
+  const nombreFinal = `Ventas_MedioMayor_${fechaStr.replace(/-/g,"")}.xlsx`;
+
+  XLSX.writeFile(wb, nombreFinal);
+}
+
+/* -----------------------------------------------------------------------
    BOTONES
----------------------------------------------------------------- */
+------------------------------------------------------------------------ */
 document.getElementById("btn-cobrar").onclick = async ()=>{
-  if(productos.length===0){ alert("Sin productos"); return; }
+  if (productos.length === 0) {
+    alert("No hay productos.");
+    return;
+  }
+
+  const ticketId = generarNumeroTicket();
+  const t = generarTextoTicket(ticketId);
+
+  // guardar ticket completo
+  const fecha = new Date();
+  const ticketRecord = {
+    fechaHoraISO: fecha.toISOString(),
+    items: productos.map(p=>({
+      nombre: p.nombre,
+      cantidad: 1,
+      precio: p.precio,
+      subtotal: p.precio
+    })),
+    total: productos.reduce((s,p)=>s+p.precio,0),
+    ticketId: ticketId
+  };
+  guardarTicketDelDia(ticketRecord);
 
   actualizarTotalesDiaDesdeVenta();
-
-  const texto = generarTextoTicket();
-  await imprimirTicket(texto);
+  await imprimirTicket(t);
 
   productos.length = 0;
   actualizarResumen();
@@ -502,40 +558,56 @@ document.getElementById("btn-nueva").onclick = ()=>{
   actualizarResumen();
 };
 
-document.getElementById("btn-ver-cierre").onclick = cargarTotalesDia;
+document.getElementById("btn-ver-cierre").onclick = ()=>{
+  cargarTotalesDia();
+  alert("Cierre actualizado.");
+};
 
 document.getElementById("btn-imprimir-cierre").onclick = async ()=>{
   let data = JSON.parse(localStorage.getItem(STORAGE_KEY_TOTALES)||"{}");
   const hoy = fechaClaveHoy();
   const t = data[hoy] || {empanadas:0, papas:0, total:0};
 
+  const { fechaStr, horaStr } = getFechaHoraPartes();
+
   const texto = `
 CIERRE DEL DÍA
 NIVEL MEDIO MAYOR
-Escuela SEMILLITAS
------------------------------- 
-Fecha: ${hoy}
------------------------------- 
+JARDÍN SEMILLITAS
+------------------------------
+Fecha: ${fechaStr}
+Hora:  ${horaStr}
+------------------------------
 Emp. de queso: ${t.empanadas} un.
 Papas fritas:  ${t.papas} pcn.
------------------------------- 
+------------------------------
 Total vendido: ${formatearCLP(t.total)}
------------------------------- 
+------------------------------
 Fin del cierre
   `.trim();
 
   await imprimirTicket(texto);
 };
 
+document.getElementById("btn-exportar-excel").onclick = exportarExcelDelDia;
+
 document.getElementById("btn-reset-cierre").onclick = ()=>{
-  if(!confirm("¿Seguro que deseas resetear los totales de hoy?")) return;
+  if (!confirm("¿Resetear el día?")) return;
+
   let data = JSON.parse(localStorage.getItem(STORAGE_KEY_TOTALES)||"{}");
+  let dataTickets = JSON.parse(localStorage.getItem(STORAGE_KEY_TICKETS)||"{}");
   const hoy = fechaClaveHoy();
+
   delete data[hoy];
+  delete dataTickets[hoy];
+
   localStorage.setItem(STORAGE_KEY_TOTALES, JSON.stringify(data));
+  localStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(dataTickets));
+
   cargarTotalesDia();
-  alert("Totales de hoy reseteados.");
+  alert("Día reseteado.");
 };
 </script>
+
 </body>
 </html>
