@@ -148,7 +148,7 @@
   <div class="app-container">
 
     <div class="header-logo">
-      <!-- Ajusta el nombre EXACTO del archivo según tu repo -->
+      <!-- OJO: usa exactamente el nombre de archivo que tengas en /img -->
       <img src="img/semillitas.jpg" class="logo-img" alt="Jardín Semillitas" />
     </div>
 
@@ -227,6 +227,9 @@ if ("serviceWorker" in navigator) {
 ---------------------------------------------------------------- */
 const productos = [];
 const STORAGE_KEY_TOTALES  = "totalesDiaEmpanadasPapas";
+const STORAGE_KEY_CORR     = "semillitasCorrelativoDia";
+
+let logoDataUrl = null; // cache del logo para jsPDF
 
 /* --------------------------------------------------------------
    FORMATEO FECHA / HORA / CLP
@@ -331,10 +334,8 @@ function actualizarTotalesDiaDesdeVenta() {
 cargarTotalesDia();
 
 /* --------------------------------------------------------------
-   CORRELATIVO TICKET SIMPLE (letra por mes + correlativo diario)
+   CORRELATIVO TICKET
 ---------------------------------------------------------------- */
-const STORAGE_KEY_CORR = "semillitasCorrelativoDia";
-
 function obtenerCorrelativoHoy() {
   const hoy = fechaClaveHoy();
   let data = JSON.parse(localStorage.getItem(STORAGE_KEY_CORR) || "{}");
@@ -356,28 +357,35 @@ function generarNumeroTicket() {
 }
 
 /* --------------------------------------------------------------
-   GENERAR TEXTO TICKET (RESUMIDO COMO PEDISTE)
+   TEXTO TICKET – NUEVO FORMATO
+   - Lista cada ítem
+   - Luego resumen corto por producto
 ---------------------------------------------------------------- */
 function generarTextoTicket() {
   const total = productos.reduce((s,p)=>s+p.precio,0);
   const { fechaStr, horaStr } = getFechaHoraPartes();
   const ticketId = generarNumeroTicket();
 
-  // Agrupar cantidades por producto
+  // Conteo por producto (para el resumen)
   const conteo = {};
   productos.forEach(p=>{
     if (!conteo[p.nombre]) conteo[p.nombre] = 0;
     conteo[p.nombre] += 1;
   });
 
-  let detalleResumen = "";
+  // Detalle: listado uno a uno (seguro en ancho 48mm)
+  let detalleListado = "";
+  productos.forEach(p=>{
+    detalleListado += `- ${p.nombre}\n`;
+  });
+
+  // Resumen corto
+  let resumenTxt = "";
   for (const nombre in conteo) {
     const qty = conteo[nombre];
-    let unidadTexto = "unidades";
-    if (nombre === "Papas fritas") unidadTexto = (qty === 1 ? "porción" : "porciones");
-    else unidadTexto = (qty === 1 ? "unidad" : "unidades");
-
-    detalleResumen += `- ${nombre} = ${qty} ${unidadTexto}\n`;
+    const esPapas = (nombre === "Papas fritas");
+    const sufijo = esPapas ? "pcn." : "un.";
+    resumenTxt += `Total ${nombre} = ${qty} ${sufijo}\n`;
   }
 
   let texto = "";
@@ -390,13 +398,47 @@ function generarTextoTicket() {
   texto += `Ticket: ${ticketId}\n`;
   texto += "------------------------------\n";
   texto += "DETALLE:\n";
-  texto += detalleResumen || "- Sin productos\n";
+  texto += detalleListado || "- Sin productos\n";
+  texto += "------------------------------\n";
+  texto += "RESUMEN:\n";
+  texto += resumenTxt || "- Sin productos\n";
   texto += "------------------------------\n";
   texto += `Total a pagar: ${formatearCLP(total)}\n`;
   texto += "------------------------------\n";
   texto += "Gracias por su compra\n";
 
   return texto;
+}
+
+/* --------------------------------------------------------------
+   OBTENER LOGO DESDE EL <img> DEL HEADER
+   (sin fetch, sin CORS raros)
+---------------------------------------------------------------- */
+async function obtenerLogoDataUrl() {
+  if (logoDataUrl) return logoDataUrl;
+
+  const img = document.querySelector(".logo-img");
+  if (!img) return null;
+
+  if (!img.complete) {
+    await new Promise(resolve => {
+      img.addEventListener("load", resolve, { once: true });
+      img.addEventListener("error", resolve, { once: true });
+    });
+  }
+
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    logoDataUrl = canvas.toDataURL("image/jpeg");
+    return logoDataUrl;
+  } catch (e) {
+    console.error("No se pudo convertir el logo a base64:", e);
+    return null;
+  }
 }
 
 /* --------------------------------------------------------------
@@ -409,25 +451,9 @@ async function imprimirTicket(texto) {
   }
   const { jsPDF } = window.jspdf;
 
-  // Cargar logo en Base64
-  async function cargarImagenBase64(url) {
-    try {
-      const resp = await fetch(url);
-      const blob = await resp.blob();
-      return new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(blob);
-      });
-    } catch (e) {
-      console.error("Error cargando logo:", e);
-      return null;
-    }
-  }
-
   const lineas = texto.split(/\r?\n/);
 
-  // Altura fija generosa para que nada se corte (200mm)
+  // Altura fija generosa para que nada se corte
   const altura = 200;
 
   const doc = new jsPDF({
@@ -435,24 +461,24 @@ async function imprimirTicket(texto) {
     format:[48, altura]
   });
 
-  // Fuente limpia (no matricial)
+  // Fuente limpia
   doc.setFont("helvetica","normal");
   doc.setFontSize(9);
 
-  const imgBase64 = await cargarImagenBase64("img/Semillitas.JPG");
   let cursorY = 5;
 
-  // Logo centrado, más pequeño para no cortarse
+  // Logo centrado, tamaño seguro (no se corta)
+  const imgBase64 = await obtenerLogoDataUrl();
   if (imgBase64) {
     const logoAncho = 30;        // ancho en mm
     const logoAlto  = 20;        // alto en mm
-    const logoX = (48 - logoAncho) / 2; // centrado
+    const logoX = (48 - logoAncho) / 2;
     doc.addImage(imgBase64, "JPEG", logoX, cursorY, logoAncho, logoAlto);
     cursorY += logoAlto + 4;
   }
 
   const lineHeight = 4;
-  const maxWidth = 44; // 48mm - 2mm margen a cada lado
+  const maxWidth = 44; // 48mm - 2mm de margen a cada lado
 
   lineas.forEach(l=>{
     const linea = l || " ";
@@ -495,13 +521,14 @@ document.getElementById("btn-imprimir-cierre").onclick = async ()=>{
 CIERRE DEL DÍA
 NIVEL MEDIO MAYOR
 JARDÍN SEMILLITAS
-------------------------------
+------------------------------ 
 Fecha: ${hoy}
-------------------------------
-Empanadas: ${t.empanadas}
-Papas fritas: ${t.papas}
+------------------------------ 
+Empanadas de queso: ${t.empanadas} un.
+Papas fritas:       ${t.papas} pcn.
+------------------------------ 
 Total vendido: ${formatearCLP(t.total)}
-------------------------------
+------------------------------ 
 Fin del cierre
   `.trim();
 
