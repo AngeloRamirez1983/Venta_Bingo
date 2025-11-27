@@ -148,7 +148,7 @@
   <div class="app-container">
 
     <div class="header-logo">
-      <!-- OJO: usa exactamente el nombre de archivo que tengas en /img -->
+      <!-- Cambia a img/semillitas.jpg si tu archivo se llama así -->
       <img src="img/semillitas.jpg" class="logo-img" alt="Jardín Semillitas" />
     </div>
 
@@ -161,9 +161,9 @@
     </div>
 
     <div class="products-grid">
-      <button class="product-card" data-producto="Empanada de queso" data-precio="1000">
-        <img src="img/empanada.jpg" class="product-image" alt="Empanada de queso" />
-        <div>Empanada de queso</div>
+      <button class="product-card" data-producto="Emp. de queso" data-precio="1000">
+        <img src="img/empanada.jpg" class="product-image" alt="Emp. de queso" />
+        <div>Emp. de queso</div>
         <div>$1.000 c/u</div>
       </button>
 
@@ -201,7 +201,7 @@
         <span id="cierre-fecha"></span>
       </div>
 
-      <p id="cierre-empanadas">Empanadas: 0</p>
+      <p id="cierre-empanadas">Emp. de queso: 0</p>
       <p id="cierre-papas">Papas fritas: 0</p>
       <p id="cierre-total">Total vendido: $0</p>
 
@@ -228,7 +228,6 @@ if ("serviceWorker" in navigator) {
 const productos = [];
 const STORAGE_KEY_TOTALES  = "totalesDiaEmpanadasPapas";
 const STORAGE_KEY_CORR     = "semillitasCorrelativoDia";
-
 let logoDataUrl = null; // cache del logo para jsPDF
 
 /* --------------------------------------------------------------
@@ -307,7 +306,7 @@ function cargarTotalesDia() {
   const t = data[hoy] || {empanadas:0, papas:0, total:0};
 
   document.getElementById("cierre-fecha").textContent = hoy;
-  document.getElementById("cierre-empanadas").textContent = `Empanadas: ${t.empanadas}`;
+  document.getElementById("cierre-empanadas").textContent = `Emp. de queso: ${t.empanadas}`;
   document.getElementById("cierre-papas").textContent = `Papas fritas: ${t.papas}`;
   document.getElementById("cierre-total").textContent = `Total vendido: ${formatearCLP(t.total)}`;
   document.getElementById("realtime-amount").textContent = formatearCLP(t.total);
@@ -321,7 +320,7 @@ function actualizarTotalesDiaDesdeVenta() {
   let totalVenta = 0;
   productos.forEach(p=>{
     totalVenta += p.precio;
-    if (p.nombre === "Empanada de queso") t.empanadas += 1;
+    if (p.nombre === "Emp. de queso") t.empanadas += 1;
     if (p.nombre === "Papas fritas") t.papas += 1;
   });
   t.total += totalVenta;
@@ -357,35 +356,33 @@ function generarNumeroTicket() {
 }
 
 /* --------------------------------------------------------------
-   TEXTO TICKET – NUEVO FORMATO
-   - Lista cada ítem
-   - Luego resumen corto por producto
+   TEXTO TICKET – DETALLE + RESUMEN CORTO
 ---------------------------------------------------------------- */
 function generarTextoTicket() {
   const total = productos.reduce((s,p)=>s+p.precio,0);
   const { fechaStr, horaStr } = getFechaHoraPartes();
   const ticketId = generarNumeroTicket();
 
-  // Conteo por producto (para el resumen)
+  // Conteo por producto para resumen
   const conteo = {};
   productos.forEach(p=>{
     if (!conteo[p.nombre]) conteo[p.nombre] = 0;
     conteo[p.nombre] += 1;
   });
 
-  // Detalle: listado uno a uno (seguro en ancho 48mm)
+  // Detalle: listado línea por línea
   let detalleListado = "";
   productos.forEach(p=>{
     detalleListado += `- ${p.nombre}\n`;
   });
 
-  // Resumen corto
+  // Resumen corto (Emp. de queso = 3 un. / Papas fritas = 2 pcn.)
   let resumenTxt = "";
   for (const nombre in conteo) {
     const qty = conteo[nombre];
     const esPapas = (nombre === "Papas fritas");
     const sufijo = esPapas ? "pcn." : "un.";
-    resumenTxt += `Total ${nombre} = ${qty} ${sufijo}\n`;
+    resumenTxt += `${nombre} = ${qty} ${sufijo}\n`;
   }
 
   let texto = "";
@@ -411,8 +408,7 @@ function generarTextoTicket() {
 }
 
 /* --------------------------------------------------------------
-   OBTENER LOGO DESDE EL <img> DEL HEADER
-   (sin fetch, sin CORS raros)
+   LOGO DESDE EL <img> DEL HEADER (SIN FETCH)
 ---------------------------------------------------------------- */
 async function obtenerLogoDataUrl() {
   if (logoDataUrl) return logoDataUrl;
@@ -442,7 +438,7 @@ async function obtenerLogoDataUrl() {
 }
 
 /* --------------------------------------------------------------
-   IMPRESIÓN POS-58 (48mm) CON LOGO, FUENTE HELVETICA
+   IMPRESIÓN POS-58 (48mm) CON LOGO, HELVETICA
 ---------------------------------------------------------------- */
 async function imprimirTicket(texto) {
   if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -452,33 +448,30 @@ async function imprimirTicket(texto) {
   const { jsPDF } = window.jspdf;
 
   const lineas = texto.split(/\r?\n/);
-
-  // Altura fija generosa para que nada se corte
-  const altura = 200;
+  const altura = 200; // generoso para no cortar nada
 
   const doc = new jsPDF({
     unit:"mm",
     format:[48, altura]
   });
 
-  // Fuente limpia
   doc.setFont("helvetica","normal");
   doc.setFontSize(9);
 
   let cursorY = 5;
 
-  // Logo centrado, tamaño seguro (no se corta)
+  // Logo centrado (30mm ancho, 20mm alto)
   const imgBase64 = await obtenerLogoDataUrl();
   if (imgBase64) {
-    const logoAncho = 30;        // ancho en mm
-    const logoAlto  = 20;        // alto en mm
+    const logoAncho = 30;
+    const logoAlto  = 20;
     const logoX = (48 - logoAncho) / 2;
     doc.addImage(imgBase64, "JPEG", logoX, cursorY, logoAncho, logoAlto);
     cursorY += logoAlto + 4;
   }
 
   const lineHeight = 4;
-  const maxWidth = 44; // 48mm - 2mm de margen a cada lado
+  const maxWidth = 44; // 2mm de margen a cada lado
 
   lineas.forEach(l=>{
     const linea = l || " ";
@@ -495,7 +488,6 @@ async function imprimirTicket(texto) {
 document.getElementById("btn-cobrar").onclick = async ()=>{
   if(productos.length===0){ alert("Sin productos"); return; }
 
-  // Actualiza totales del día
   actualizarTotalesDiaDesdeVenta();
 
   const texto = generarTextoTicket();
@@ -524,8 +516,8 @@ JARDÍN SEMILLITAS
 ------------------------------ 
 Fecha: ${hoy}
 ------------------------------ 
-Empanadas de queso: ${t.empanadas} un.
-Papas fritas:       ${t.papas} pcn.
+Emp. de queso: ${t.empanadas} un.
+Papas fritas:  ${t.papas} pcn.
 ------------------------------ 
 Total vendido: ${formatearCLP(t.total)}
 ------------------------------ 
