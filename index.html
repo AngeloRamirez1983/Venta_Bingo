@@ -384,10 +384,9 @@ function renderVentaActual() {
 }
 
 /* ---------------------------
-   IMPRESIÓN VIA PDF (jsPDF)
+   IMPRESIÓN VIA PDF (jsPDF, A4)
 ---------------------------- */
 function imprimirTicket(texto) {
-  // Verificamos que jsPDF esté disponible
   if (!window.jspdf || !window.jspdf.jsPDF) {
     alert("Error: jsPDF no se ha cargado. Revisa la conexión a Internet.");
     console.error("jsPDF no encontrado en window.jspdf");
@@ -396,43 +395,30 @@ function imprimirTicket(texto) {
 
   const { jsPDF } = window.jspdf;
 
-  // Formato tipo térmica: 58mm de ancho, 200mm de alto (más que suficiente)
+  // Usamos tamaño A4 estándar, que se lleva bien con la mayoría de drivers
   const doc = new jsPDF({
-    unit: "mm",
-    format: [58, 200],  // [ancho, alto] en mm
+    orientation: "portrait",
+    unit: "pt",
+    format: "a4"
   });
 
-  // Texto en negro, font monoespaciada
   doc.setFont("courier", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(12);
 
   const lineas = texto.split(/\r?\n/);
-  let x = 2;    // margen izquierdo en mm
-  let y = 6;    // margen superior en mm
-  const lineHeight = 4; // espacio entre líneas
+
+  let x = 30;           // margen izquierdo
+  let y = 40;           // margen superior
+  const lineHeight = 16;
 
   lineas.forEach((linea) => {
-    // Evitamos escribir fuera de la página
-    if (y > 190) return;
+    if (y > 800) return; // seguridad para no salir de página
     doc.text(linea || " ", x, y);
     y += lineHeight;
   });
 
-  // OPCIÓN 1: abrir el PDF en otra pestaña para que lo veas
   const blobUrl = doc.output("bloburl");
   window.open(blobUrl, "_blank");
-
-  // Si prefieres descargar directo, puedes usar esto en vez de lo anterior:
-  // doc.save("ticket-semillitas.pdf");
-}
-
-  // Ajusta la altura real de la página a lo que usamos
-  doc.internal.pageSize.height = y + 20;
-
-  // AutoPrint + abrir en nueva pestaña para que el usuario mande a la térmica
-  doc.autoPrint();
-  const url = doc.output("bloburl");
-  window.open(url, "_blank");
 }
 
 /* ---------------------------
