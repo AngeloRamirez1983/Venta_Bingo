@@ -8,6 +8,9 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#1e293b" />
 
+  <!-- jsPDF para impresión vía PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
   <style>
     * {
       box-sizing: border-box;
@@ -121,6 +124,11 @@
       box-shadow: 0 8px 14px rgba(0,0,0,0.4);
     }
 
+    .product-card:active {
+      transform: scale(0.97);
+      border-color: #38bdf8;
+    }
+
     .product-image {
       width: 100%;
       aspect-ratio: 4/3;
@@ -175,7 +183,7 @@
   <div class="app-container">
 
     <div class="header-logo">
-      <img src="img/semillitas.jpg" class="logo-img">
+      <img src="img/semillitas.jpg" class="logo-img" alt="Jardín Semillitas">
     </div>
 
     <h1 class="app-title">Ventas Nivel Medio Mayor</h1>
@@ -199,12 +207,12 @@
 
     <div class="products-grid">
       <button class="product-card" data-producto="Empanada de queso" data-precio="1000">
-        <img src="img/empanada.jpg" class="product-image">
+        <img src="img/empanada.jpg" class="product-image" alt="Empanada de queso">
         Empanada de queso — $1.000
       </button>
 
       <button class="product-card" data-producto="Papas fritas" data-precio="2000">
-        <img src="img/papas.jpg" class="product-image">
+        <img src="img/papas.jpg" class="product-image" alt="Papas fritas">
         Papas fritas — $2.000
       </button>
     </div>
@@ -230,7 +238,6 @@
   </div>
 
 <script>
-
 /* ---------------------------
    SERVICE WORKER
 ---------------------------- */
@@ -239,7 +246,7 @@ if ("serviceWorker" in navigator) {
 }
 
 /* ---------------------------
-   KEYS
+   STORAGE KEYS
 ---------------------------- */
 const STORAGE_KEY_STATS = "semillitasStatsDia";
 const STORAGE_KEY_CORR  = "semillitasCorrelativoDia";
@@ -247,7 +254,7 @@ const STORAGE_KEY_CORR  = "semillitasCorrelativoDia";
 let lineasVenta = [];
 
 /* ---------------------------
-   FUNCIONES
+   UTILIDADES
 ---------------------------- */
 function formatearCLP(v) {
   return v.toLocaleString("es-CL", {
@@ -264,8 +271,8 @@ function formatFechaHora() {
   const mes = meses[d.getMonth()];
   const anio = d.getFullYear();
 
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
+  const h  = String(d.getHours()).padStart(2, "0");
+  const m  = String(d.getMinutes()).padStart(2, "0");
 
   return `${dia}-${mes}-${anio} ${h}:${m}`;
 }
@@ -296,7 +303,7 @@ function obtenerCorrelativoHoy() {
 function actualizarTicketActualUI() {
   const { ultimo } = obtenerCorrelativoHoy();
   document.getElementById("ticket-actual").textContent =
-    getCodigoTicket(ultimo+1);
+    getCodigoTicket(ultimo + 1);
 }
 
 /* ---------------------------
@@ -377,57 +384,37 @@ function renderVentaActual() {
 }
 
 /* ---------------------------
-   IMPRESIÓN POS — FIX @page size
+   IMPRESIÓN VIA PDF (jsPDF)
 ---------------------------- */
 function imprimirTicket(texto) {
-  const w = window.open("", "_blank", "width=280,height=800");
+  const { jsPDF } = window.jspdf;
 
-  const safe = texto
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;");
+  // Formato tipo térmica: ancho ~58mm (unos 226 pt), alto grande y luego ajustamos
+  const doc = new jsPDF({
+    unit: "pt",
+    format: [226, 1000]  // ancho fijo, alto se recorta luego
+  });
 
-  w.document.write(`
-  <!DOCTYPE html>
-  <html><head>
-    <meta charset="utf-8" />
-    <style>
+  const lineas = texto.split("\n");
+  let x = 10;          // margen izq
+  let y = 20;          // inicio arriba
+  const lineHeight = 16;
 
-      /* *** FIX ABSOLUTO PARA RECIBOS 58mm *** */
-      @page {
-        size: 58mm auto;
-        margin: 0;
-      }
+  doc.setFont("courier", "bold");
+  doc.setFontSize(13);
 
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: "Consolas","DejaVu Sans Mono",monospace;
-      }
+  lineas.forEach(linea => {
+    doc.text(linea, x, y);
+    y += lineHeight;
+  });
 
-      .ticket {
-        width: 208px;
-        max-width: 208px;
-        padding: 0;
-        margin: 0;
-        font-size: 15px;
-        font-weight: 700;
-        line-height: 1.25;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        text-align: left;
-      }
+  // Ajusta la altura real de la página a lo que usamos
+  doc.internal.pageSize.height = y + 20;
 
-    </style>
-  </head>
-  <body>
-    <div class="ticket">${safe}</div>
-  </body>
-  </html>
-  `);
-
-  w.document.close();
-  setTimeout(() => w.print(), 200);
+  // AutoPrint + abrir en nueva pestaña para que el usuario mande a la térmica
+  doc.autoPrint();
+  const url = doc.output("bloburl");
+  window.open(url, "_blank");
 }
 
 /* ---------------------------
@@ -444,7 +431,7 @@ function agruparProductos() {
 }
 
 /* ---------------------------
-   TICKET VENTA ESTILO A
+   TICKET VENTA (TEXTO)
 ---------------------------- */
 function generarTicketVenta(codigo, total) {
   let t = "";
@@ -481,7 +468,7 @@ function generarTicketVenta(codigo, total) {
 }
 
 /* ---------------------------
-   TICKET CIERRE ESTILO A
+   TICKET CIERRE (TEXTO)
 ---------------------------- */
 function generarTicketCierre() {
   const { fechaClave, stats } = obtenerStatsHoy();
@@ -537,7 +524,8 @@ document.getElementById("btn-cobrar").addEventListener("click",()=>{
 
   cargarStatsDia();
 
-  imprimirTicket(generarTicketVenta(codigoTicket,totalTicket));
+  const ticketTexto = generarTicketVenta(codigoTicket, totalTicket);
+  imprimirTicket(ticketTexto);
 
   lineasVenta = [];
   renderVentaActual();
@@ -550,7 +538,8 @@ document.getElementById("btn-ver-cierre").addEventListener("click",()=>{
 });
 
 document.getElementById("btn-imprimir-cierre").addEventListener("click",()=>{
-  imprimirTicket(generarTicketCierre());
+  const cierreTexto = generarTicketCierre();
+  imprimirTicket(cierreTexto);
 });
 
 document.getElementById("btn-reset-cierre").addEventListener("click",()=>{
