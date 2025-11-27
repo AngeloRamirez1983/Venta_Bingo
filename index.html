@@ -299,15 +299,25 @@ document.querySelectorAll(".product-card").forEach(btn=>{
    CARGAR Y GUARDAR TOTALES DEL DÍA
 ------------------------------------------------------------------------ */
 function cargarTotalesDia() {
-  let data = JSON.parse(localStorage.getItem(STORAGE_KEY_TOTALES)||"{}");
-  const hoy = fechaClaveHoy();
-  const t = data[hoy] || {empanadas:0, papas:0, total:0};
+  let data = JSON.parse(localStorage.getItem(STORAGE_KEY_TOTALES) || "{}");
 
-  document.getElementById("cierre-fecha").textContent = hoy;
-  document.getElementById("cierre-empanadas").textContent = `Emp. de queso: ${t.empanadas}`;
-  document.getElementById("cierre-papas").textContent = `Papas fritas: ${t.papas}`;
-  document.getElementById("cierre-total").textContent = `Total vendido: ${formatearCLP(t.total)}`;
-  document.getElementById("realtime-amount").textContent = formatearCLP(t.total);
+  // Clave para localStorage (AAAA-MM-DD)
+  const hoyClave = fechaClaveHoy();
+  const t = data[hoyClave] || { empanadas: 0, papas: 0, total: 0 };
+
+  // Formato bonito para mostrar en pantalla (DD-MMM-AAAA)
+  const { fechaStr } = getFechaHoraPartes();
+
+  document.getElementById("cierre-fecha").textContent =
+    fechaStr; // <-- aquí cambia el formato visible
+  document.getElementById("cierre-empanadas").textContent =
+    `Emp. de queso: ${t.empanadas}`;
+  document.getElementById("cierre-papas").textContent =
+    `Papas fritas: ${t.papas}`;
+  document.getElementById("cierre-total").textContent =
+    `Total vendido: ${formatearCLP(t.total)}`;
+  document.getElementById("realtime-amount").textContent =
+    formatearCLP(t.total);
 }
 cargarTotalesDia();
 
@@ -408,7 +418,7 @@ function generarTextoTicket(ticketId) {
   return `
 COMPROBANTE DE VENTA
 NIVEL MEDIO MAYOR
-Escuela SEMILLITAS
+ESCUELA SEMILLITAS
 ------------------------------
 Fecha: ${fechaStr}
 Hora:  ${horaStr}
@@ -573,7 +583,7 @@ document.getElementById("btn-imprimir-cierre").onclick = async ()=>{
   const texto = `
 CIERRE DEL DÍA
 NIVEL MEDIO MAYOR
-Escuela SEMILLITAS
+ESCUELA SEMILLITAS
 ------------------------------
 Fecha: ${fechaStr}
 Hora:  ${horaStr}
