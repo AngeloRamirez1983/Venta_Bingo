@@ -205,12 +205,12 @@
     <div class="products-grid">
 
       <button class="product-card" data-producto="Empanada de queso" data-precio="1000">
-        <img src="img/empanada.jpg" class="product-image">
+        <img src="img/empanada.jpg" class="product-image" alt="Empanada de queso">
         Empanada de queso — $1.000
       </button>
 
       <button class="product-card" data-producto="Papas fritas" data-precio="2000">
-        <img src="img/papas.jpg" class="product-image">
+        <img src="img/papas.jpg" class="product-image" alt="Papas fritas">
         Papas fritas — $2.000
       </button>
 
@@ -237,7 +237,6 @@
   </div>
 
 <script>
-
 /* ---------------------------
    SERVICE WORKER
 ---------------------------- */
@@ -327,10 +326,14 @@ function guardarStatsHoy(fecha, data, stats) {
 function cargarStatsDia() {
   const { fechaClave, stats } = obtenerStatsHoy();
 
-  document.getElementById("realtime-amount").textContent = formatearCLP(stats.totalVentas);
+  document.getElementById("realtime-amount").textContent =
+    formatearCLP(stats.totalVentas);
+
   document.getElementById("stats-cantidad-ventas").textContent =
     `${stats.cantidadVentas} venta${stats.cantidadVentas!==1?"s":""}`;
-  document.getElementById("stats-total-ventas").textContent = formatearCLP(stats.totalVentas);
+
+  document.getElementById("stats-total-ventas").textContent =
+    formatearCLP(stats.totalVentas);
 
   document.getElementById("cierre-fecha").textContent = fechaClave;
   document.getElementById("cierre-cantidad").textContent =
@@ -383,10 +386,10 @@ function renderVentaActual() {
 }
 
 /* ---------------------------
-   IMPRESIÓN POS 58mm (224px)
+   IMPRESIÓN POS 58mm AJUSTADA
 ---------------------------- */
 function imprimirTicket(texto) {
-  const w = window.open("", "_blank", "width=300,height=800");
+  const w = window.open("", "_blank", "width=280,height=800");
   const safe = texto
     .replace(/&/g,"&amp;")
     .replace(/</g,"&lt;")
@@ -402,14 +405,16 @@ function imprimirTicket(texto) {
         font-family:"Consolas","DejaVu Sans Mono",monospace;
       }
       .ticket {
-        width:224px;
-        padding:8px;
+        width:208px;
+        padding:4px 2px;
+        margin:0 auto;
         font-size:15px;
         font-weight:700;
         white-space:pre-wrap;
         word-wrap:break-word;
         line-height:1.25;
-        max-width:224px;
+        max-width:208px;
+        text-align:left;
       }
       @page { margin:0; }
     </style>
@@ -439,56 +444,60 @@ function agruparProductos() {
 }
 
 /* ---------------------------
-   TICKET VENTA
+   TICKET VENTA (ESTILO A)
 ---------------------------- */
 function generarTicketVenta(codigo, total) {
-  let t="";
-  t+="   COMPROBANTE DE VENTA\n";
-  t+="  NIVEL MEDIO MAYOR - SEMILLITAS\n";
-  t+="------------------------------\n";
-  t+="Fecha: " + formatFechaHora() + "\n";
-  t+="Ticket: " + codigo + "\n";
-  t+="------------------------------\n";
+  let t = "";
 
-  t+="DETALLE:\n";
-  lineasVenta.forEach(l=>{
-    t+=`- ${l.nombre}\n`;
-    t+=`   ${formatearCLP(l.precio)}\n`;
+  t += "      COMPROBANTE DE VENTA\n";
+  t += "       NIVEL MEDIO MAYOR\n";
+  t += "          SEMILLITAS\n";
+  t += "--------------------------------\n";
+  t += "Fecha: " + formatFechaHora() + "\n";
+  t += "Ticket: " + codigo + "\n";
+  t += "--------------------------------\n";
+
+  t += "DETALLE:\n";
+  lineasVenta.forEach(l => {
+    t += `- ${l.nombre}\n`;
+    t += `  ${formatearCLP(l.precio)}\n`;
   });
 
   const resumen = agruparProductos();
 
-  t+="------------------------------\n";
-  t+="RESUMEN:\n";
+  t += "--------------------------------\n";
+  t += "RESUMEN:\n";
   for (const prod in resumen) {
     const r = resumen[prod];
-    t+=`- ${prod} x ${r.qty} = ${formatearCLP(r.total)}\n`;
+    t += `- ${prod} x ${r.qty} = ${formatearCLP(r.total)}\n`;
   }
 
-  t+="------------------------------\n";
-  t+=`TOTAL: ${formatearCLP(total)}\n`;
-  t+="------------------------------\n";
-  t+="Gracias por su compra\n\n";
+  t += "--------------------------------\n";
+  t += `TOTAL: ${formatearCLP(total)}\n`;
+  t += "--------------------------------\n";
+  t += "Gracias por su compra\n\n";
 
   return t;
 }
 
 /* ---------------------------
-   TICKET CIERRE
+   TICKET CIERRE (ESTILO A)
 ---------------------------- */
 function generarTicketCierre() {
   const { fechaClave, stats } = obtenerStatsHoy();
-  let t="";
-  t+="        CIERRE DEL DÍA\n";
-  t+="     NIVEL MEDIO MAYOR\n";
-  t+="        SEMILLITAS\n";
-  t+="------------------------------\n";
-  t+="Fecha: "+fechaClave+"\n";
-  t+="------------------------------\n";
-  t+=`Ventas: ${stats.cantidadVentas}\n`;
-  t+=`Total:  ${formatearCLP(stats.totalVentas)}\n`;
-  t+="------------------------------\n";
-  t+="Fin del cierre\n\n";
+  let t = "";
+
+  t += "           CIERRE DEL DÍA\n";
+  t += "        NIVEL MEDIO MAYOR\n";
+  t += "           SEMILLITAS\n";
+  t += "--------------------------------\n";
+  t += "Fecha: " + fechaClave + "\n";
+  t += "--------------------------------\n";
+  t += `Ventas: ${stats.cantidadVentas}\n`;
+  t += `Total:  ${formatearCLP(stats.totalVentas)}\n`;
+  t += "--------------------------------\n";
+  t += "Fin del cierre\n\n";
+
   return t;
 }
 
@@ -502,35 +511,35 @@ document.querySelectorAll(".product-card").forEach(btn=>{
 });
 
 document.getElementById("btn-nueva").addEventListener("click",()=>{
-  lineasVenta=[];
+  lineasVenta = [];
   renderVentaActual();
 });
 
 document.getElementById("btn-cobrar").addEventListener("click",()=>{
 
-  if(!lineasVenta.length){
+  if (!lineasVenta.length) {
     alert("No hay productos agregados.");
     return;
   }
 
-  const totalTicket=lineasVenta.reduce((s,l)=>s+l.precio,0);
+  const totalTicket = lineasVenta.reduce((s,l)=>s+l.precio,0);
 
   const { fechaClave, data: corrData, ultimo } = obtenerCorrelativoHoy();
-  const numeroNuevo = ultimo+1;
-  corrData[fechaClave]=numeroNuevo;
+  const numeroNuevo = ultimo + 1;
+  corrData[fechaClave] = numeroNuevo;
   localStorage.setItem(STORAGE_KEY_CORR, JSON.stringify(corrData));
-  const codigoTicket=getCodigoTicket(numeroNuevo);
+  const codigoTicket = getCodigoTicket(numeroNuevo);
 
-  const statsData=obtenerStatsHoy();
+  const statsData = obtenerStatsHoy();
   statsData.stats.cantidadVentas++;
-  statsData.stats.totalVentas+=totalTicket;
+  statsData.stats.totalVentas += totalTicket;
   guardarStatsHoy(statsData.fechaClave, statsData.data, statsData.stats);
 
   cargarStatsDia();
 
   imprimirTicket(generarTicketVenta(codigoTicket,totalTicket));
 
-  lineasVenta=[];
+  lineasVenta = [];
   renderVentaActual();
   actualizarTicketActualUI();
 });
@@ -545,11 +554,11 @@ document.getElementById("btn-imprimir-cierre").addEventListener("click",()=>{
 });
 
 document.getElementById("btn-reset-cierre").addEventListener("click",()=>{
-  if(!confirm("¿Seguro de eliminar todas las ventas de hoy?"))return;
+  if (!confirm("¿Seguro de eliminar todas las ventas de hoy?")) return;
 
   const { fechaClave, data, stats } = obtenerStatsHoy();
-  stats.cantidadVentas=0;
-  stats.totalVentas=0;
+  stats.cantidadVentas = 0;
+  stats.totalVentas = 0;
   guardarStatsHoy(fechaClave,data,stats);
   cargarStatsDia();
   alert("Ventas reseteadas.");
