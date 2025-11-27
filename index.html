@@ -121,11 +121,6 @@
       box-shadow: 0 8px 14px rgba(0,0,0,0.4);
     }
 
-    .product-card:active {
-      transform: scale(0.97);
-      border-color: #38bdf8;
-    }
-
     .product-image {
       width: 100%;
       aspect-ratio: 4/3;
@@ -180,7 +175,7 @@
   <div class="app-container">
 
     <div class="header-logo">
-      <img src="img/semillitas.jpg" class="logo-img" alt="Jardín Semillitas">
+      <img src="img/semillitas.jpg" class="logo-img">
     </div>
 
     <h1 class="app-title">Ventas Nivel Medio Mayor</h1>
@@ -203,17 +198,15 @@
     </div>
 
     <div class="products-grid">
-
       <button class="product-card" data-producto="Empanada de queso" data-precio="1000">
-        <img src="img/empanada.jpg" class="product-image" alt="Empanada de queso">
+        <img src="img/empanada.jpg" class="product-image">
         Empanada de queso — $1.000
       </button>
 
       <button class="product-card" data-producto="Papas fritas" data-precio="2000">
-        <img src="img/papas.jpg" class="product-image" alt="Papas fritas">
+        <img src="img/papas.jpg" class="product-image">
         Papas fritas — $2.000
       </button>
-
     </div>
 
     <div class="summary-card">
@@ -237,6 +230,7 @@
   </div>
 
 <script>
+
 /* ---------------------------
    SERVICE WORKER
 ---------------------------- */
@@ -245,18 +239,15 @@ if ("serviceWorker" in navigator) {
 }
 
 /* ---------------------------
-   STORAGE KEYS
+   KEYS
 ---------------------------- */
 const STORAGE_KEY_STATS = "semillitasStatsDia";
 const STORAGE_KEY_CORR  = "semillitasCorrelativoDia";
 
-/* ---------------------------
-   GLOBAL STATE
----------------------------- */
 let lineasVenta = [];
 
 /* ---------------------------
-   UTILIDADES
+   FUNCIONES
 ---------------------------- */
 function formatearCLP(v) {
   return v.toLocaleString("es-CL", {
@@ -273,10 +264,10 @@ function formatFechaHora() {
   const mes = meses[d.getMonth()];
   const anio = d.getFullYear();
 
-  const horas = String(d.getHours()).padStart(2,"0");
-  const min = String(d.getMinutes()).padStart(2,"0");
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
 
-  return `${dia}-${mes}-${anio} ${horas}:${min}`;
+  return `${dia}-${mes}-${anio} ${h}:${m}`;
 }
 
 function getFechaClave() {
@@ -289,8 +280,8 @@ function getLetraDia() {
   return String.fromCharCode("A".charCodeAt(0) + ((dia-1) % 26));
 }
 
-function getCodigoTicket(numero) {
-  return getLetraDia() + String(numero).padStart(5,"0");
+function getCodigoTicket(n) {
+  return getLetraDia() + String(n).padStart(5,"0");
 }
 
 /* ---------------------------
@@ -305,7 +296,7 @@ function obtenerCorrelativoHoy() {
 function actualizarTicketActualUI() {
   const { ultimo } = obtenerCorrelativoHoy();
   document.getElementById("ticket-actual").textContent =
-    getCodigoTicket(ultimo + 1);
+    getCodigoTicket(ultimo+1);
 }
 
 /* ---------------------------
@@ -314,12 +305,12 @@ function actualizarTicketActualUI() {
 function obtenerStatsHoy() {
   const fechaClave = getFechaClave();
   let data = JSON.parse(localStorage.getItem(STORAGE_KEY_STATS) || "{}");
-  const stats = data[fechaClave] || { totalVentas:0, cantidadVentas:0 };
+  const stats = data[fechaClave] || { cantidadVentas:0, totalVentas:0 };
   return { fechaClave, data, stats };
 }
 
-function guardarStatsHoy(fecha, data, stats) {
-  data[fecha] = stats;
+function guardarStatsHoy(f, data, stats) {
+  data[f] = stats;
   localStorage.setItem(STORAGE_KEY_STATS, JSON.stringify(data));
 }
 
@@ -386,10 +377,11 @@ function renderVentaActual() {
 }
 
 /* ---------------------------
-   IMPRESIÓN POS 58mm AJUSTADA
+   IMPRESIÓN POS — FIX @page size
 ---------------------------- */
 function imprimirTicket(texto) {
   const w = window.open("", "_blank", "width=280,height=800");
+
   const safe = texto
     .replace(/&/g,"&amp;")
     .replace(/</g,"&lt;")
@@ -400,23 +392,32 @@ function imprimirTicket(texto) {
   <html><head>
     <meta charset="utf-8" />
     <style>
+
+      /* *** FIX ABSOLUTO PARA RECIBOS 58mm *** */
+      @page {
+        size: 58mm auto;
+        margin: 0;
+      }
+
       body {
-        margin:0; padding:0;
-        font-family:"Consolas","DejaVu Sans Mono",monospace;
+        margin: 0;
+        padding: 0;
+        font-family: "Consolas","DejaVu Sans Mono",monospace;
       }
+
       .ticket {
-        width:208px;
-        padding:4px 2px;
-        margin:0 auto;
-        font-size:15px;
-        font-weight:700;
-        white-space:pre-wrap;
-        word-wrap:break-word;
-        line-height:1.25;
-        max-width:208px;
-        text-align:left;
+        width: 208px;
+        max-width: 208px;
+        padding: 0;
+        margin: 0;
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.25;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        text-align: left;
       }
-      @page { margin:0; }
+
     </style>
   </head>
   <body>
@@ -426,8 +427,7 @@ function imprimirTicket(texto) {
   `);
 
   w.document.close();
-  w.focus();
-  setTimeout(() => w.print(), 250);
+  setTimeout(() => w.print(), 200);
 }
 
 /* ---------------------------
@@ -444,7 +444,7 @@ function agruparProductos() {
 }
 
 /* ---------------------------
-   TICKET VENTA (ESTILO A)
+   TICKET VENTA ESTILO A
 ---------------------------- */
 function generarTicketVenta(codigo, total) {
   let t = "";
@@ -481,12 +481,12 @@ function generarTicketVenta(codigo, total) {
 }
 
 /* ---------------------------
-   TICKET CIERRE (ESTILO A)
+   TICKET CIERRE ESTILO A
 ---------------------------- */
 function generarTicketCierre() {
   const { fechaClave, stats } = obtenerStatsHoy();
-  let t = "";
 
+  let t = "";
   t += "           CIERRE DEL DÍA\n";
   t += "        NIVEL MEDIO MAYOR\n";
   t += "           SEMILLITAS\n";
