@@ -148,7 +148,8 @@
   <div class="app-container">
 
     <div class="header-logo">
-      <img src="img/semillitas.jpg" class="logo-img" />
+      <!-- Ajusta el nombre EXACTO del archivo según tu repo -->
+      <img src="img/semillitas.jpg" class="logo-img" alt="Jardín Semillitas" />
     </div>
 
     <h1>Ventas Nivel Medio Mayor<br>Jardín Semillitas</h1>
@@ -161,13 +162,13 @@
 
     <div class="products-grid">
       <button class="product-card" data-producto="Empanada de queso" data-precio="1000">
-        <img src="img/empanada.jpg" class="product-image" />
+        <img src="img/empanada.jpg" class="product-image" alt="Empanada de queso" />
         <div>Empanada de queso</div>
         <div>$1.000 c/u</div>
       </button>
 
       <button class="product-card" data-producto="Papas fritas" data-precio="2000">
-        <img src="img/papas.jpg" class="product-image" />
+        <img src="img/papas.jpg" class="product-image" alt="Papas fritas" />
         <div>Papas fritas</div>
         <div>$2.000 porción</div>
       </button>
@@ -228,21 +229,25 @@ const productos = [];
 const STORAGE_KEY_TOTALES  = "totalesDiaEmpanadasPapas";
 
 /* --------------------------------------------------------------
-   FORMATEOS
+   FORMATEO FECHA / HORA / CLP
 ---------------------------------------------------------------- */
 function formatearCLP(v) {
   return v.toLocaleString("es-CL",{style:"currency",currency:"CLP",maximumFractionDigits:0});
 }
 
-function fechaVisible() {
+function getFechaHoraPartes() {
   const f = new Date();
-  const meses = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const meses = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
   const d  = String(f.getDate()).padStart(2,"0");
   const m  = meses[f.getMonth()];
   const a  = f.getFullYear();
   const h  = String(f.getHours()).padStart(2,"0");
   const mm = String(f.getMinutes()).padStart(2,"0");
-  return `${d}-${m}-${a} ${h}:${mm}`;
+
+  return {
+    fechaStr: `${d}-${m}-${a}`,
+    horaStr:  `${h}:${mm}`
+  };
 }
 
 function fechaClaveHoy(){
@@ -250,7 +255,7 @@ function fechaClaveHoy(){
 }
 
 /* --------------------------------------------------------------
-   VENTA ACTUAL
+   VENTA ACTUAL (PANTALLA)
 ---------------------------------------------------------------- */
 function actualizarResumen() {
   const cont = document.getElementById("summary-list");
@@ -259,7 +264,6 @@ function actualizarResumen() {
 
   productos.forEach((p,i)=>{
     total += p.precio;
-
     const row = document.createElement("div");
     row.className = "line-item";
     row.innerHTML = `
@@ -327,57 +331,76 @@ function actualizarTotalesDiaDesdeVenta() {
 cargarTotalesDia();
 
 /* --------------------------------------------------------------
-   GENERAR TEXTO TICKET
+   CORRELATIVO TICKET SIMPLE (letra por mes + correlativo diario)
 ---------------------------------------------------------------- */
-function generarCorrelativo() {
-  // Letra por mes + últimos 5 dígitos del timestamp
-  const hoy = new Date();
-  const letra = String.fromCharCode(65 + hoy.getMonth()); // A..L
-  const num = Date.now().toString().slice(-5);
-  return letra + num;
+const STORAGE_KEY_CORR = "semillitasCorrelativoDia";
+
+function obtenerCorrelativoHoy() {
+  const hoy = fechaClaveHoy();
+  let data = JSON.parse(localStorage.getItem(STORAGE_KEY_CORR) || "{}");
+  const actual = data[hoy] || 0;
+  return { hoy, data, actual };
 }
 
-function generarTextoTicket() {
-  let total = productos.reduce((s,p)=>s+p.precio,0);
+function generarNumeroTicket() {
+  const { hoy, data, actual } = obtenerCorrelativoHoy();
+  const nuevo = actual + 1;
 
-  let detalle = "";
-  let resumen = {};
+  const mes = new Date().getMonth(); // 0..11
+  const letra = String.fromCharCode(65 + mes); // A..L
 
-  productos.forEach(p=>{
-    detalle += `- ${p.nombre}\n  $${p.precio.toLocaleString()}\n`;
-    if(!resumen[p.nombre]) resumen[p.nombre] = 0;
-    resumen[p.nombre] += p.precio;
-  });
+  data[hoy] = nuevo;
+  localStorage.setItem(STORAGE_KEY_CORR, JSON.stringify(data));
 
-  let resumenTxt = "";
-  for(const k in resumen){
-    resumenTxt += `- ${k} = ${formatearCLP(resumen[k])}\n`;
-  }
-
-  const ticket = `
-COMPROBANTE DE VENTA
- NIVEL MEDIO MAYOR
- SEMILLITAS
---------------------------
-Fecha: ${fechaVisible()}
-Ticket: ${generarCorrelativo()}
---------------------------
-DETALLE:
-${detalle}
---------------------------
-RESUMEN:
-${resumenTxt}
---------------------------
-TOTAL: ${formatearCLP(total)}
---------------------------
-Gracias por su compra
-  `.trim();
-
-  return ticket;
+  return `${letra}${String(nuevo).padStart(5,"0")}`;
 }
 
 /* --------------------------------------------------------------
-   IMPRESIÓN POS-58 (48mm) CON LOGO
+   GENERAR TEXTO TICKET (RESUMIDO COMO PEDISTE)
+---------------------------------------------------------------- */
+function generarTextoTicket() {
+  const total = productos.reduce((s,p)=>s+p.precio,0);
+  const { fechaStr, horaStr } = getFechaHoraPartes();
+  const ticketId = generarNumeroTicket();
+
+  // Agrupar cantidades por producto
+  const conteo = {};
+  productos.forEach(p=>{
+    if (!conteo[p.nombre]) conteo[p.nombre] = 0;
+    conteo[p.nombre] += 1;
+  });
+
+  let detalleResumen = "";
+  for (const nombre in conteo) {
+    const qty = conteo[nombre];
+    let unidadTexto = "unidades";
+    if (nombre === "Papas fritas") unidadTexto = (qty === 1 ? "porción" : "porciones");
+    else unidadTexto = (qty === 1 ? "unidad" : "unidades");
+
+    detalleResumen += `- ${nombre} = ${qty} ${unidadTexto}\n`;
+  }
+
+  let texto = "";
+  texto += "COMPROBANTE DE VENTA\n";
+  texto += "NIVEL MEDIO MAYOR\n";
+  texto += "JARDÍN SEMILLITAS\n";
+  texto += "------------------------------\n";
+  texto += `Fecha: ${fechaStr}\n`;
+  texto += `Hora:  ${horaStr}\n`;
+  texto += `Ticket: ${ticketId}\n`;
+  texto += "------------------------------\n";
+  texto += "DETALLE:\n";
+  texto += detalleResumen || "- Sin productos\n";
+  texto += "------------------------------\n";
+  texto += `Total a pagar: ${formatearCLP(total)}\n`;
+  texto += "------------------------------\n";
+  texto += "Gracias por su compra\n";
+
+  return texto;
+}
+
+/* --------------------------------------------------------------
+   IMPRESIÓN POS-58 (48mm) CON LOGO, FUENTE HELVETICA
 ---------------------------------------------------------------- */
 async function imprimirTicket(texto) {
   if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -386,6 +409,7 @@ async function imprimirTicket(texto) {
   }
   const { jsPDF } = window.jspdf;
 
+  // Cargar logo en Base64
   async function cargarImagenBase64(url) {
     try {
       const resp = await fetch(url);
@@ -402,35 +426,39 @@ async function imprimirTicket(texto) {
   }
 
   const lineas = texto.split(/\r?\n/);
-  let altura = Math.max(90, lineas.length * 4 + 70);
+
+  // Altura fija generosa para que nada se corte (200mm)
+  const altura = 200;
 
   const doc = new jsPDF({
     unit:"mm",
     format:[48, altura]
   });
 
-  doc.setFont("courier","bold");
-  doc.setFontSize(8);
+  // Fuente limpia (no matricial)
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(9);
 
-  // Logo
-  const imgBase64 = await cargarImagenBase64("img/semillitas.jpg");
-  let cursorY = 4;
+  const imgBase64 = await cargarImagenBase64("img/Semillitas.JPG");
+  let cursorY = 5;
 
+  // Logo centrado, más pequeño para no cortarse
   if (imgBase64) {
-    const logoAncho = 42;
-    const logoAlto  = 42;
-    const logoX = (48 - logoAncho) / 2;
+    const logoAncho = 30;        // ancho en mm
+    const logoAlto  = 20;        // alto en mm
+    const logoX = (48 - logoAncho) / 2; // centrado
     doc.addImage(imgBase64, "JPEG", logoX, cursorY, logoAncho, logoAlto);
     cursorY += logoAlto + 4;
   }
 
-  const lh = 4;
-  lineas.forEach(l=>{
-    doc.text(l || " ", 2, cursorY);
-    cursorY += lh;
-  });
+  const lineHeight = 4;
+  const maxWidth = 44; // 48mm - 2mm margen a cada lado
 
-  doc.internal.pageSize.height = cursorY + 4;
+  lineas.forEach(l=>{
+    const linea = l || " ";
+    doc.text(linea, 2, cursorY, { maxWidth });
+    cursorY += lineHeight;
+  });
 
   window.open(doc.output("bloburl"), "_blank");
 }
@@ -465,15 +493,15 @@ document.getElementById("btn-imprimir-cierre").onclick = async ()=>{
 
   const texto = `
 CIERRE DEL DÍA
- NIVEL MEDIO MAYOR
- SEMILLITAS
---------------------------
+NIVEL MEDIO MAYOR
+JARDÍN SEMILLITAS
+------------------------------
 Fecha: ${hoy}
---------------------------
+------------------------------
 Empanadas: ${t.empanadas}
 Papas fritas: ${t.papas}
-Total: ${formatearCLP(t.total)}
---------------------------
+Total vendido: ${formatearCLP(t.total)}
+------------------------------
 Fin del cierre
   `.trim();
 
